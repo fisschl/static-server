@@ -2,16 +2,24 @@ import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
 import type { GetObjectCommandInput } from "@aws-sdk/client-s3";
 
 export const createS3Client = () => {
-  const { S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY } = Bun.env;
+  const { S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY, S3_REGION, S3_ENDPOINT } =
+    Bun.env;
   return new S3Client({
-    region: "tos-s3-cn-shanghai",
+    region: S3_REGION,
     credentials: {
       accessKeyId: S3_ACCESS_KEY_ID!,
       secretAccessKey: S3_SECRET_ACCESS_KEY!,
     },
-    endpoint: "https://tos-s3-cn-shanghai.volces.com",
+    endpoint: S3_ENDPOINT,
     forcePathStyle: false,
   });
+};
+
+// 定义共享的 CORS headers
+const CORS_HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET, HEAD, OPTIONS",
+  "Access-Control-Allow-Headers": "Range, Content-Type, Authorization",
 };
 
 const s3Client = createS3Client();
@@ -19,17 +27,13 @@ const s3Client = createS3Client();
 Bun.serve({
   routes: {
     "/static/*": async (req: Request) => {
-      const headers = new Headers({
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "GET, HEAD, OPTIONS",
-        "Access-Control-Allow-Headers": "*",
-      });
       // 处理 CORS 预检请求
-      if (req.method === "OPTIONS")
+      if (req.method === "OPTIONS") {
         return new Response(null, {
           status: 204,
-          headers,
+          headers: CORS_HEADERS,
         });
+      }
 
       const { pathname } = new URL(req.url);
       const { S3_BUCKET } = Bun.env;
@@ -54,7 +58,8 @@ Bun.serve({
       // 直接从S3获取对象
       const response = await s3Client.send(command);
 
-      // 使用Headers对象构建响应头
+      // 使用Headers对象构建响应头，包含CORS headers
+      const headers = new Headers(CORS_HEADERS);
       headers.set("Cache-Control", `public, max-age=${30 * 24 * 60 * 60}`); // 30天客户端缓存
 
       // 添加S3返回的元数据到响应头
