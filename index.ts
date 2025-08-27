@@ -19,6 +19,18 @@ const s3Client = createS3Client();
 Bun.serve({
   routes: {
     "/static/*": async (req: Request) => {
+      const headers = new Headers({
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET, HEAD, OPTIONS",
+        "Access-Control-Allow-Headers": "*",
+      });
+      // 处理 CORS 预检请求
+      if (req.method === "OPTIONS")
+        return new Response(null, {
+          status: 204,
+          headers,
+        });
+
       const { pathname } = new URL(req.url);
       const { S3_BUCKET } = Bun.env;
 
@@ -43,7 +55,6 @@ Bun.serve({
       const response = await s3Client.send(command);
 
       // 使用Headers对象构建响应头
-      const headers = new Headers();
       headers.set("Cache-Control", `public, max-age=${30 * 24 * 60 * 60}`); // 30天客户端缓存
 
       // 添加S3返回的元数据到响应头
