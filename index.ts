@@ -22,10 +22,12 @@ Bun.serve({
       const { pathname } = new URL(req.url);
       const { S3_BUCKET } = Bun.env;
 
+      const key = pathname.replace(/[/\\]+/g, "/").replace(/^\//, "");
+
       // 创建GetObjectCommand，设置S3返回的响应头中的缓存控制字段
       const command = new GetObjectCommand({
         Bucket: S3_BUCKET!,
-        Key: pathname,
+        Key: key,
         ResponseCacheControl: `max-age=${30 * 24 * 60 * 60}`, // 30天缓存
       });
 
