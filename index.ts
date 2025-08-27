@@ -17,16 +17,13 @@ export const createS3Client = () => {
 const s3Client = createS3Client();
 
 const handleStatic = async (req: Request) => {
-  const basePath = "/static/";
   const { pathname } = new URL(req.url);
-  const key = pathname.slice(pathname.indexOf(basePath) + basePath.length);
-
   const { S3_BUCKET } = Bun.env;
 
   // 创建GetObjectCommand，设置S3返回的响应头中的缓存控制字段
   const command = new GetObjectCommand({
     Bucket: S3_BUCKET!,
-    Key: key,
+    Key: pathname,
     ResponseCacheControl: `max-age=${30 * 24 * 60 * 60}` // 30天缓存
   });
 
