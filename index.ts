@@ -1,19 +1,5 @@
-import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
-import type { GetObjectCommandInput } from "@aws-sdk/client-s3";
-
-export const createS3Client = () => {
-  const { S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY, S3_REGION, S3_ENDPOINT } =
-    Bun.env;
-  return new S3Client({
-    region: S3_REGION,
-    credentials: {
-      accessKeyId: S3_ACCESS_KEY_ID!,
-      secretAccessKey: S3_SECRET_ACCESS_KEY!,
-    },
-    endpoint: S3_ENDPOINT,
-    forcePathStyle: false,
-  });
-};
+import { S3Client } from "bun";
+import { extname } from "path";
 
 // 定义共享的 CORS headers
 const CORS_HEADERS = {
@@ -22,62 +8,90 @@ const CORS_HEADERS = {
   "Access-Control-Allow-Headers": "Range, Content-Type, Authorization",
 };
 
-const s3Client = createS3Client();
+const { S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY, S3_ENDPOINT } = Bun.env;
+
+const s3 = new S3Client({
+  accessKeyId: S3_ACCESS_KEY_ID!,
+  secretAccessKey: S3_SECRET_ACCESS_KEY!,
+  endpoint: S3_ENDPOINT!,
+  virtualHostedStyle: true,
+});
+
+const findExistsKey = async (pathname: string): Promise<string | undefined> => {
+  const list = pathname.split(/[/\\]+/g).filter(Boolean);
+  if (!list.length) {
+    const key = "index.html";
+    const isExist = await s3.exists(key);
+    if (isExist) return key;
+    else return undefined;
+  }
+  const baseKey = list.join("/");
+  const isExist = await s3.exists(baseKey);
+  if (isExist) return baseKey;
+  while (list.length) {
+    const key = [...list, "index.html"].join("/");
+    const isExist = await s3.exists(key);
+    if (isExist) return key;
+    list.pop();
+  }
+  return findExistsKey("");
+};
+
+const NoCacheExts = [".html", ".htm"];
+
+const pick = (headers: Headers, items: string[]) => {
+  const result: Record<string, string> = {};
+  items.forEach((key) => {
+    const value = headers.get(key);
+    if (value) result[key] = value;
+  });
+  return result;
+};
 
 Bun.serve({
-  routes: {
-    "/static/*": async (req: Request) => {
-      // 处理 CORS 预检请求
-      if (req.method === "OPTIONS") {
-        return new Response(null, {
-          status: 204,
-          headers: CORS_HEADERS,
-        });
-      }
-
-      const { pathname } = new URL(req.url);
-      const { S3_BUCKET } = Bun.env;
-
-      const key = pathname.replace(/[/\\]+/g, "/").replace(/^\/+/, "");
-
-      // 获取Range头信息
-      const range = req.headers.get("range");
-
-      // 构建GetObjectCommand参数
-      const params: GetObjectCommandInput = {
-        Bucket: S3_BUCKET!,
-        Key: key,
-      };
-
-      // 如果有Range参数，则添加到请求中
-      if (range) params.Range = range;
-
-      // 创建GetObjectCommand
-      const command = new GetObjectCommand(params);
-
-      // 直接从S3获取对象
-      const response = await s3Client.send(command);
-
-      // 使用Headers对象构建响应头，包含CORS headers
-      const headers = new Headers(CORS_HEADERS);
-      headers.set("Cache-Control", `public, max-age=${30 * 24 * 60 * 60}`); // 30天客户端缓存
-
-      // 添加S3返回的元数据到响应头
-      if (response.ContentType)
-        headers.set("Content-Type", response.ContentType);
-      if (response.ContentLength)
-        headers.set("Content-Length", response.ContentLength.toString());
-      if (response.ETag) headers.set("ETag", response.ETag);
-      if (response.LastModified)
-        headers.set("Last-Modified", response.LastModified.toUTCString());
-      if (range && response.ContentRange)
-        headers.set("Content-Range", response.ContentRange);
-
-      const { httpStatusCode } = response.$metadata;
-      return new Response(response.Body, {
-        status: httpStatusCode,
-        headers,
+  async fetch(req) {
+    // 处理 CORS 预检请求
+    if (req.method === "OPTIONS") {
+      return new Response(null, {
+        status: 204,
+        headers: CORS_HEADERS,
       });
-    },
+    }
+
+    const { pathname } = new URL(req.url);
+    const fileKey = await findExistsKey(pathname);
+
+    if (!fileKey) {
+      return new Response("Not Found", {
+        status: 404,
+        headers: CORS_HEADERS,
+      });
+    }
+
+    const response = await fetch(s3.presign(fileKey), {
+      headers: req.headers,
+    });
+
+    const headers: Record<string, string> = {
+      ...CORS_HEADERS,
+      ...pick(response.headers, [
+        "Content-Type",
+        "ETag",
+        "Last-Modified",
+        "Content-Range",
+        "Content-Length",
+        "Content-Encoding",
+      ]),
+    };
+
+    const fileExt = extname(fileKey);
+    if (!NoCacheExts.includes(fileExt))
+      headers["Cache-Control"] = `public, max-age=${30 * 24 * 60 * 60}`;
+
+    return new Response(response.body, {
+      status: response.status,
+      headers,
+    });
   },
+  port: 3000,
 });

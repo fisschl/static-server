@@ -1,19 +1,16 @@
 {
   "name": "static-server",
   "module": "index.ts",
-  "type": "module",
+  "devDependencies": {
+    "@tsconfig/bun": "^1.0.8",
+    "@types/bun": "^1.2.21",
+    "prettier": "^3.6.2",
+    "typescript": "^5.9.2"
+  },
   "scripts": {
     "lint": "tsc --noEmit",
     "start": "bun index.ts",
     "build": "bun build --entrypoints ./index.ts --outdir ./dist --format esm"
   },
-  "devDependencies": {
-    "@tsconfig/bun": "^1.0.8",
-    "@types/bun": "latest",
-    "prettier": "^3.6.2",
-    "typescript": "^5"
-  },
-  "dependencies": {
-    "@aws-sdk/client-s3": "^3.876.0"
-  }
+  "type": "module"
 }
