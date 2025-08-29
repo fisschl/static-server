@@ -81,12 +81,16 @@ Bun.serve({
         "Content-Range",
         "Content-Length",
         "Content-Encoding",
+        "Accept-Ranges",
+        "Vary",
+        "Expires"
       ]),
     };
 
     const fileExt = extname(fileKey);
-    if (!NoCacheExts.includes(fileExt))
+    if (!NoCacheExts.includes(fileExt) && !headers["Cache-Control"]) {
       headers["Cache-Control"] = `public, max-age=${30 * 24 * 60 * 60}`;
+    }
 
     return new Response(response.body, {
       status: response.status,
