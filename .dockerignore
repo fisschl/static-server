@@ -1,8 +1,8 @@
 # 编译输出目录
-target
+target/
 
 # Git相关
-.git
+.git/
 .gitignore
 
 # 环境变量文件
@@ -27,3 +27,12 @@ Thumbs.db
 
 # 构建脚本（非Docker构建所需）
 build.ps1
+
+# 测试和文档
+tests/
+benches/
+examples/
+**/*.md
+
+# Cargo lock file (如果使用特定版本)
+# Cargo.lock

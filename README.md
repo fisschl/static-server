@@ -18,6 +18,7 @@ S3_ACCESS_KEY_ID=your_access_key
 S3_SECRET_ACCESS_KEY=your_secret_key
 S3_ENDPOINT=your_s3_endpoint
 S3_BUCKET=your_bucket_name
+S3_REGION=your_region  # S3区域
 
 # 可选配置
 PORT=3000  # 默认端口
@@ -41,13 +42,7 @@ cargo run --release
 
 ## Docker部署
 
-### 使用PowerShell脚本构建和推送镜像
-```powershell
-# Windows PowerShell
-.uild.ps1
-```
-
-### 手动构建Docker镜像
+### 构建Docker镜像
 ```bash
 docker build -t static-server .
 ```
@@ -57,20 +52,8 @@ docker build -t static-server .
 docker run -d -p 3000:3000 \
   -e S3_ACCESS_KEY_ID=your_access_key \
   -e S3_SECRET_ACCESS_KEY=your_secret_key \
+  -e S3_REGION=your_region \
   -e S3_ENDPOINT=your_s3_endpoint \
   -e S3_BUCKET=your_bucket_name \
   static-server
-```
-
-## 项目结构
-```
-├── .dockerignore       # Docker忽略文件
-├── .gitignore          # Git忽略文件
-├── Cargo.toml          # Rust项目配置
-├── Dockerfile          # Docker构建文件
-├── LICENSE             # 许可证文件
-├── README.md           # 项目说明文档
-├── build.ps1           # PowerShell构建脚本
-└── src/                # 源代码目录
-    └── main.rs         # 主程序文件
 ```

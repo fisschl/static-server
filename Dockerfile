@@ -1,50 +1,39 @@
-# 使用官方Rust镜像作为构建阶段
-FROM rust:1.78-slim-buster AS builder
-
-# 设置工作目录
+# 使用官方Rust镜像作为 chef 阶段
+FROM rust:1.89.0 AS chef
 WORKDIR /app
+RUN cargo install cargo-chef
 
-# 复制Cargo.toml和Cargo.lock文件
-COPY Cargo.toml Cargo.lock ./
+# Planner 阶段：分析项目依赖
+FROM chef AS planner
+COPY . .
+RUN cargo chef prepare --recipe-path recipe.json
 
-# 创建一个占位符main.rs文件以构建依赖
-RUN mkdir -p src && echo 'fn main() {}' > src/main.rs
+# Builder 阶段：构建依赖和项目
+FROM chef AS builder
+COPY --from=planner /app/recipe.json recipe.json
 
-# 构建依赖（这将缓存依赖层）
+# 构建依赖（这将被缓存）
+RUN cargo chef cook --release --recipe-path recipe.json
+
+# 复制源代码
+COPY . .
+
+# 构建项目
 RUN cargo build --release
 
-# 复制真实的源代码
-COPY src ./src
+# 运行阶段：使用标准 Debian 12 镜像
+FROM debian:12
 
-# 删除占位符main.rs
-RUN rm src/main.rs
-
-# 复制真实的main.rs
-COPY src/main.rs ./src/
-
-# 重新构建项目
-RUN cargo build --release
-
-# 使用Alpine作为运行阶段基础镜像
-FROM alpine:3.18
-
-# 安装必要的依赖
-RUN apk --no-cache add ca-certificates
-
-# 创建非root用户运行应用
-RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+# 安装必要的运行时依赖
+RUN apt-get update && apt-get install -y \
+    ca-certificates \
+    tzdata
 
 # 设置工作目录
 WORKDIR /app
 
 # 从构建阶段复制编译好的二进制文件
-COPY --from=builder /app/target/release/static-server /app/
-
-# 更改文件所有权
-RUN chown -R appuser:appgroup /app
-
-# 切换到非root用户
-USER appuser
+COPY --from=builder /app/target/release/static-server ./static-server
 
 # 暴露端口
 EXPOSE 3000

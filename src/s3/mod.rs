@@ -3,8 +3,9 @@
 //! 该模块处理与 AWS S3 的所有交互，包括检查键是否存在和检索对象。
 
 use crate::config::{get_bucket_name, get_s3_client};
-use std::time::Duration;
+use anyhow::Result;
 use aws_sdk_s3::presigning::PresigningConfig;
+use std::time::Duration;
 
 /// 检查 S3 存储桶中是否存在指定键。
 ///
@@ -97,33 +98,30 @@ pub async fn find_exists_key(pathname: &str) -> Option<String> {
     None
 }
 
-/// 生成 S3 对象的预签名 URL。
+/// 生成 S3 对象的预签名 URL（过期时间为1小时）。
 ///
 /// # 参数
 ///
 /// * `key` - S3 对象的键。
-/// * `expires_in` - URL 过期时间（秒）。
 ///
 /// # 返回值
 ///
 /// 预签名 URL 或错误信息。
-pub async fn generate_presigned_url(
-    key: &str,
-    expires_in: u64,
-) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
+pub async fn generate_presigned_url(key: &str) -> Result<String> {
     let s3_client = get_s3_client().await;
     let bucket_name = get_bucket_name().await;
-    
+
+    // 构建预签名配置（1小时过期时间）
+    let presigning_config = PresigningConfig::builder()
+        .expires_in(Duration::from_secs(3600)) // 1小时 = 3600秒
+        .build()?;
+
+    // 生成预签名请求
     let presigned_request = s3_client
         .get_object()
         .bucket(bucket_name)
         .key(key)
-        .presigned(
-            PresigningConfig::builder()
-                .expires_in(Duration::from_secs(expires_in))
-                .build()
-                .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>)?
-        )
+        .presigned(presigning_config)
         .await?;
 
     Ok(presigned_request.uri().to_string())

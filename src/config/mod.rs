@@ -10,8 +10,6 @@ use aws_sdk_s3::config::Credentials;
 use std::env;
 use std::sync::Arc;
 use tokio::sync::OnceCell;
-use std::time::Duration;
-use aws_sdk_s3::presigning::PresigningConfig;
 
 // 全局单例 S3 客户端
 static S3_CLIENT: OnceCell<Arc<Client>> = OnceCell::const_new();
@@ -69,40 +67,6 @@ pub async fn get_s3_client() -> &'static Arc<Client> {
 /// 全局存储桶名称的引用。
 pub async fn get_bucket_name() -> &'static str {
     BUCKET_NAME
-        .get_or_init(|| async {
-            env::var("S3_BUCKET").expect("必须设置 S3_BUCKET")
-        })
+        .get_or_init(|| async { env::var("S3_BUCKET").expect("必须设置 S3_BUCKET") })
         .await
-}
-
-/// 生成 S3 对象的预签名 URL。
-///
-/// # 参数
-///
-/// * `key` - S3 对象的键。
-/// * `expires_in` - URL 过期时间（秒）。
-///
-/// # 返回值
-///
-/// 预签名 URL 或错误信息。
-pub async fn generate_presigned_url(
-    key: &str,
-    expires_in: u64,
-) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
-    let s3_client = get_s3_client().await;
-    let bucket_name = get_bucket_name().await;
-    
-    let presigned_request = s3_client
-        .get_object()
-        .bucket(bucket_name)
-        .key(key)
-        .presigned(
-            PresigningConfig::builder()
-                .expires_in(Duration::from_secs(expires_in))
-                .build()
-                .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>)?
-        )
-        .await?;
-
-    Ok(presigned_request.uri().to_string())
 }
