@@ -1,0 +1,17 @@
+[package]
+name = "static-server"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+actix-web = "4"
+actix-cors = "0.6"
+aws-config = "1.1"
+aws-sdk-s3 = "1.16"
+dotenv = "0.15"
+regex = "1.10"
+bytes = "1.5"
+http = "1.1"
+futures = "0.3"
+tokio = { version = "1.37", features = ["sync"] }
+awc = "3.7.0"

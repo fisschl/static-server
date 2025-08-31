@@ -1,34 +1,52 @@
-# dependencies (bun install)
-node_modules
+# Rust
+**/target
+*.rs.bk
 
-# output
-out
-dist
-*.tgz
-
-# code coverage
-coverage
-*.lcov
-
-# logs
-logs
-_.log
-report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
-
-# dotenv environment variable files
+# Environment variables
 .env
+.env.local
 .env.development.local
 .env.test.local
 .env.production.local
-.env.local
+.env.*.local
 
-# caches
-.eslintcache
-.cache
-*.tsbuildinfo
+# Logs
+logs
+*.log
 
-# IntelliJ based IDEs
-.idea
-
-# Finder (MacOS) folder config
+# OS generated files
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+ehthumbs.db
+
+# Editor directories and files
+.vscode/
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+*.swp
+*.swo
+*~
+
+# Cache directories
+.cache/
+.temp/
+
+# Testing
+coverage
+*.profdata
+*.profraw
+
+# Misc
+*.pem
+*.key
+*.cert
+
+
+# Added by cargo
+
+/target

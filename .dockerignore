@@ -1,18 +1,29 @@
-node_modules
-.nuxt
-.output
-dist
+# 编译输出目录
+target
+
+# Git相关
 .git
 .gitignore
-README.md
+
+# 环境变量文件
 .env
 .env.local
 .env.*.local
+
+# 日志文件
 *.log
+
+# 操作系统文件
 .DS_Store
-.vscode
-.idea
-coverage
-.nyc_output
-.cache
-.temp
+Thumbs.db
+
+# IDE配置
+.vscode/
+.idea/
+
+# 缓存目录
+.cache/
+.temp/
+
+# 构建脚本（非Docker构建所需）
+build.ps1
