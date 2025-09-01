@@ -15,7 +15,7 @@ use crate::s3::config::{get_bucket_name, get_s3_client};
 /// 如果键存在则返回 `true`，否则返回 `false`。
 pub async fn check_key_exists(key: &str) -> bool {
     // 执行实际的 S3 检查
-    let s3_client = get_s3_client();
+    let s3_client = get_s3_client().await;
     let bucket_name = get_bucket_name();
 
     let result = s3_client

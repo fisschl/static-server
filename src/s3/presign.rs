@@ -17,7 +17,7 @@ use std::time::Duration;
 ///
 /// 预签名 URL 的字符串表示。
 pub async fn generate_presigned_url(key: &str) -> Result<String> {
-    let s3_client = config::get_s3_client();
+    let s3_client = config::get_s3_client().await;
     let bucket_name = config::get_bucket_name();
 
     // 创建预签名配置，设置 URL 1 小时后过期
