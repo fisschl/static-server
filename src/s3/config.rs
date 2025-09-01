@@ -21,8 +21,8 @@ static BUCKET_NAME: Lazy<String> =
 ///
 /// # 环境变量
 ///
-/// * `S3_ACCESS_KEY` - AWS 访问密钥 ID
-/// * `S3_SECRET_KEY` - AWS 秘密访问密钥
+/// * `S3_ACCESS_KEY_ID` - AWS 访问密钥 ID
+/// * `S3_SECRET_ACCESS_KEY` - AWS 秘密访问密钥
 /// * `S3_REGION` - AWS 区域
 /// * `S3_ENDPOINT` - S3 兼容服务的端点 URL
 /// * `S3_BUCKET` - S3 存储桶名称
@@ -31,8 +31,8 @@ static BUCKET_NAME: Lazy<String> =
 ///
 /// 返回创建的 S3 客户端。
 fn create_s3_client_inner() -> Result<Client> {
-    let access_key = std::env::var("S3_ACCESS_KEY").expect("S3_ACCESS_KEY must be set");
-    let secret_key = std::env::var("S3_SECRET_KEY").expect("S3_SECRET_KEY must be set");
+    let access_key = std::env::var("S3_ACCESS_KEY_ID").expect("S3_ACCESS_KEY_ID must be set");
+    let secret_key = std::env::var("S3_SECRET_ACCESS_KEY").expect("S3_SECRET_ACCESS_KEY must be set");
     let region = std::env::var("S3_REGION").expect("S3_REGION must be set");
     let endpoint = std::env::var("S3_ENDPOINT").expect("S3_ENDPOINT must be set");
 
