@@ -33,8 +33,8 @@ pub async fn check_key_exists(key: &str) -> bool {
 /// 查找请求文件的 S3 键。
 ///
 /// 此函数实现了 SPA 支持的回退逻辑：
-/// 1. 检查请求的文件是否存在。
-/// 2. 如果请求的是目录（以 '/' 结尾）或空路径，检查该目录下的 index.html。
+/// 1. 如果请求的是目录（以 '/' 结尾）或空路径，检查该目录下的 index.html。
+/// 2. 检查请求的文件是否存在（非目录路径）。
 /// 3. 如果请求的是文件，检查同名的 .html 文件。
 /// 4. 检查第一级目录中的 index.html。
 /// 5. 检查根目录中的 index.html。
@@ -47,12 +47,7 @@ pub async fn check_key_exists(key: &str) -> bool {
 ///
 /// 要提供的文件的 S3 键，如果未找到文件则返回 `None`。
 pub async fn find_exists_key(pathname: &str) -> Option<String> {
-    // 1. 检查请求的文件是否存在
-    if !pathname.is_empty() && check_key_exists(pathname).await {
-        return Some(pathname.to_string());
-    }
-
-    // 2. 如果请求的是目录（以 '/' 结尾）或空路径，检查该目录下的 index.html
+    // 1. 如果请求的是目录（以 '/' 结尾）或空路径，检查该目录下的 index.html
     if pathname.is_empty() || pathname.ends_with('/') {
         let index_path = if pathname.is_empty() {
             "index.html".to_string()
@@ -62,6 +57,11 @@ pub async fn find_exists_key(pathname: &str) -> Option<String> {
         if check_key_exists(&index_path).await {
             return Some(index_path);
         }
+    }
+
+    // 2. 检查请求的文件是否存在（非目录路径）
+    if !pathname.is_empty() && !pathname.ends_with('/') && check_key_exists(pathname).await {
+        return Some(pathname.to_string());
     }
 
     // 3. 如果请求的是文件，检查同名的 .html 文件
