@@ -14,7 +14,7 @@ bytes = "1.5"
 http = "1.1"
 futures = "0.3"
 tokio = { version = "1.37", features = ["sync"] }
-awc = "3.7.0"
+awc = { version = "3.7.0", features = ["openssl"] }
 anyhow = "1.0"
 
 [dev-dependencies]
