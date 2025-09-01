@@ -1,5 +1,4 @@
-# 使用官方Rust镜像作为 chef 阶段
-FROM rust:1.89.0 AS chef
+FROM open-source-cn-shanghai.cr.volces.com/open/rust:1 AS chef
 WORKDIR /app
 RUN cargo install cargo-chef
 
@@ -22,7 +21,7 @@ COPY . .
 RUN cargo build --release
 
 # 运行阶段：使用标准 Debian 12 镜像
-FROM debian:12
+FROM open-source-cn-shanghai.cr.volces.com/open/debian:12
 
 # 安装必要的运行时依赖
 RUN apt-get update && apt-get install -y \
