@@ -49,7 +49,7 @@ fn should_cache(ext: &str) -> bool {
     !NO_CACHE_EXTS.contains(&ext)
 }
 
-/// 处理文件请求。
+/// 处理文件请求并为静态内容提供服务。
 ///
 /// 此函数尝试在 S3 存储桶中查找请求的文件。如果未找到文件，
 /// 它会实现回退机制来为 SPA 支持提供 `index.html`。
@@ -61,7 +61,7 @@ fn should_cache(ext: &str) -> bool {
 /// # 返回值
 ///
 /// 包含文件内容或错误状态的 HTTP 响应。
-pub async fn files(req: HttpRequest) -> Result<HttpResponse, actix_web::Error> {
+pub async fn serve_files(req: HttpRequest) -> Result<HttpResponse, actix_web::Error> {
     let path = req.path().trim_start_matches('/');
     let pathname = if path.is_empty() { "" } else { path };
 

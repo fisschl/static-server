@@ -1,12 +1,14 @@
 use actix_cors::Cors;
+use actix_web::middleware::Logger;
 use actix_web::{App, HttpServer};
+use env_logger::Env;
 
 // 导入我们的模块
 mod config;
 mod handlers;
 mod s3;
 
-use handlers::files;
+use handlers::serve_files;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -15,7 +17,7 @@ async fn main() -> std::io::Result<()> {
 
     let addr = "0.0.0.0:3000";
 
-    println!("服务器运行在 http://{}", addr);
+    env_logger::init_from_env(Env::default().default_filter_or("info"));
 
     HttpServer::new(move || {
         let cors = Cors::permissive()
@@ -23,8 +25,9 @@ async fn main() -> std::io::Result<()> {
             .allowed_headers(vec!["*"]);
 
         App::new()
+            .wrap(Logger::default())
             .wrap(cors)
-            .default_service(actix_web::web::get().to(files))
+            .default_service(actix_web::web::get().to(serve_files))
     })
     .bind(addr)?
     .run()
