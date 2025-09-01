@@ -21,7 +21,7 @@ COPY . .
 RUN cargo build --release
 
 # 运行阶段：使用标准 Debian 12 镜像
-FROM open-source-cn-shanghai.cr.volces.com/open/debian:12
+FROM open-source-cn-shanghai.cr.volces.com/open/rust:1
 
 # 安装必要的运行时依赖
 RUN apt-get update && apt-get install -y \
