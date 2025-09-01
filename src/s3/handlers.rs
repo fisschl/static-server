@@ -1,8 +1,5 @@
-//! 静态文件服务器的 HTTP 处理模块。
-//!
-//! 该模块包含用于从 S3 提供文件服务的主要请求处理函数。
-
-use crate::s3::{find_exists_key, generate_presigned_url};
+use crate::s3::find_exists_key_with_cache;
+use crate::s3::generate_presigned_url;
 use actix_web::{HttpRequest, HttpResponse, Result};
 use awc::Client;
 
@@ -66,7 +63,7 @@ pub async fn serve_files(req: HttpRequest) -> Result<HttpResponse, actix_web::Er
     let pathname = if path.is_empty() { "" } else { path };
 
     // 查找文件
-    let file_key = match find_exists_key(pathname).await {
+    let file_key = match find_exists_key_with_cache(pathname).await {
         Some(key) => key,
         None => return Ok(HttpResponse::NotFound().body("Not Found")),
     };

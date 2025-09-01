@@ -4,11 +4,9 @@ use actix_web::{App, HttpServer};
 use env_logger::Env;
 
 // 导入我们的模块
-mod config;
-mod handlers;
 mod s3;
 
-use handlers::serve_files;
+use s3::serve_files;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
