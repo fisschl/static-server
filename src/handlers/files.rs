@@ -1,7 +1,7 @@
 use axum::{
     body::Body,
     extract::Request,
-    http::{header, Response, StatusCode},
+    http::{Response, StatusCode, header},
     response::IntoResponse,
 };
 use reqwest::Client;
@@ -64,7 +64,7 @@ fn should_cache(ext: &str) -> bool {
 /// # 返回值
 ///
 /// 包含文件内容或错误状态的 HTTP 响应。
-pub async fn serve_files(req: Request) -> impl IntoResponse {
+pub async fn handle_files(req: Request) -> impl IntoResponse {
     let path = req.uri().path().trim_start_matches('/');
     let pathname = if path.is_empty() { "" } else { path };
 

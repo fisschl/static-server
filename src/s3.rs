@@ -5,11 +5,9 @@
 // 声明子模块
 pub mod cache;
 pub mod config;
-pub mod handlers;
 pub mod presign;
 pub mod s3_ops;
 
 // 重新导出常用的函数
 pub use cache::find_exists_key_with_cache;
-pub use handlers::serve_files;
 pub use presign::generate_presigned_url;

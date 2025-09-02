@@ -53,7 +53,7 @@ pub async fn get_s3_client() -> Arc<Client> {
     if let Some(client) = S3_CLIENT.get() {
         return client.clone();
     }
-    
+
     let client = init_s3_client().await;
     S3_CLIENT.set(client.clone()).ok();
     client
@@ -67,9 +67,6 @@ static BUCKET_NAME: OnceCell<String> = OnceCell::new();
 /// 首次调用时从环境变量读取并缓存，后续调用直接返回缓存值
 pub fn get_bucket_name() -> String {
     BUCKET_NAME
-        .get_or_init(|| {
-            std::env::var("S3_BUCKET")
-                .expect("S3_BUCKET must be set")
-        })
+        .get_or_init(|| std::env::var("S3_BUCKET").expect("S3_BUCKET must be set"))
         .clone()
 }

@@ -1,12 +1,13 @@
-use axum::{routing::get, Router};
-use tower_http::cors::{CorsLayer, AllowHeaders};
-use tower_http::trace::TraceLayer;
+use axum::{Router, routing::get};
 use std::net::SocketAddr;
+use tower_http::cors::{AllowHeaders, CorsLayer};
+use tower_http::trace::TraceLayer;
 
 // 导入我们的模块
+mod handlers;
 mod s3;
 
-use s3::serve_files;
+use handlers::handle_files;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -20,15 +21,11 @@ async fn main() -> anyhow::Result<()> {
 
     // 配置 CORS
     let cors = CorsLayer::permissive()
-        .allow_methods([
-            http::Method::GET,
-            http::Method::HEAD,
-            http::Method::OPTIONS,
-        ])
+        .allow_methods([http::Method::GET, http::Method::HEAD, http::Method::OPTIONS])
         .allow_headers(AllowHeaders::any());
 
     let app = Router::new()
-        .fallback(get(serve_files))
+        .fallback(get(handle_files))
         .layer(TraceLayer::new_for_http())
         .layer(cors);
 
@@ -36,8 +33,9 @@ async fn main() -> anyhow::Result<()> {
 
     axum::serve(
         tokio::net::TcpListener::bind(addr).await?,
-        app.into_make_service()
-    ).await?;
+        app.into_make_service(),
+    )
+    .await?;
 
     Ok(())
 }
