@@ -110,16 +110,6 @@ pub async fn find_exists_key(pathname: &str) -> Option<String> {
         return Some(pathname.to_string());
     }
 
-    // 4. 检查同名的 .html 文件
-    let html_path = if pathname.ends_with(".html") {
-        pathname.to_string()
-    } else {
-        format!("{}.html", pathname)
-    };
-    if check_key_exists(&html_path).await {
-        return Some(html_path);
-    }
-
     // 5. 检查第一级目录中的 index.html
     // 获取第一级目录（只处理正斜杠，因为 URL 总是使用正斜杠）
     let first_level_dir = pathname.split('/').next().unwrap_or("");
