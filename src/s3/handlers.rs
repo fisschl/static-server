@@ -1,36 +1,42 @@
+use axum::{
+    body::Body,
+    extract::Request,
+    http::{header, Response, StatusCode},
+    response::IntoResponse,
+};
+use reqwest::Client;
+
 use crate::s3::find_exists_key_with_cache;
 use crate::s3::generate_presigned_url;
-use actix_web::{HttpRequest, HttpResponse, Result};
-use awc::Client;
 
 /// 不应缓存的文件扩展名。
 const NO_CACHE_EXTS: &[&str] = &[".html", ".htm"];
 
 /// 需要保留的响应头部列表
-const PRESERVE_HEADERS: &[&str] = &[
-    "accept-ranges",
-    "cache-control",
-    "content-encoding",
-    "content-language",
-    "content-length",
-    "content-range",
-    "content-type",
-    "etag",
-    "expires",
-    "last-modified",
-    "vary",
+const PRESERVE_HEADERS: &[header::HeaderName] = &[
+    header::ACCEPT_RANGES,
+    header::CACHE_CONTROL,
+    header::CONTENT_ENCODING,
+    header::CONTENT_LANGUAGE,
+    header::CONTENT_LENGTH,
+    header::CONTENT_RANGE,
+    header::CONTENT_TYPE,
+    header::ETAG,
+    header::EXPIRES,
+    header::LAST_MODIFIED,
+    header::VARY,
 ];
 
 /// 用于代理的请求头部列表
-const FORWARD_HEADERS: &[&str] = &[
-    "accept",
-    "accept-encoding",
-    "range",
-    "if-match",
-    "if-none-match",
-    "if-modified-since",
-    "if-unmodified-since",
-    "user-agent",
+const FORWARD_HEADERS: &[header::HeaderName] = &[
+    header::ACCEPT,
+    header::ACCEPT_ENCODING,
+    header::RANGE,
+    header::IF_MATCH,
+    header::IF_NONE_MATCH,
+    header::IF_MODIFIED_SINCE,
+    header::IF_UNMODIFIED_SINCE,
+    header::USER_AGENT,
 ];
 
 /// 确定文件扩展名是否应该被缓存。
@@ -58,14 +64,14 @@ fn should_cache(ext: &str) -> bool {
 /// # 返回值
 ///
 /// 包含文件内容或错误状态的 HTTP 响应。
-pub async fn serve_files(req: HttpRequest) -> Result<HttpResponse, actix_web::Error> {
-    let path = req.path().trim_start_matches('/');
+pub async fn serve_files(req: Request) -> impl IntoResponse {
+    let path = req.uri().path().trim_start_matches('/');
     let pathname = if path.is_empty() { "" } else { path };
 
     // 查找文件
     let file_key = match find_exists_key_with_cache(pathname).await {
         Some(key) => key,
-        None => return Ok(HttpResponse::NotFound().body("Not Found")),
+        None => return (StatusCode::NOT_FOUND, "").into_response(),
     };
 
     // 获取文件扩展名
@@ -75,46 +81,46 @@ pub async fn serve_files(req: HttpRequest) -> Result<HttpResponse, actix_web::Er
     };
 
     // 生成预签名 URL
-    let presigned_url = generate_presigned_url(&file_key)
-        .await
-        .map_err(actix_web::error::ErrorInternalServerError)?;
+    let presigned_url = match generate_presigned_url(&file_key).await {
+        Ok(url) => url,
+        Err(_) => return StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+    };
 
-    // 使用 awc 客户端转发请求
-    let client = Client::default();
+    // 使用 reqwest 客户端转发请求
+    let client = Client::new();
 
     // 构建转发请求并复制必要的头部
     let mut forwarded_req = client.get(&presigned_url);
     for header_name in FORWARD_HEADERS {
-        if let Some(value) = req.headers().get(*header_name) {
-            forwarded_req = forwarded_req.insert_header((*header_name, value.as_bytes()));
+        if let Some(value) = req.headers().get(header_name) {
+            forwarded_req = forwarded_req.header(header_name, value);
         }
     }
 
     // 发送请求并获取响应
-    let response = forwarded_req
-        .send()
-        .await
-        .map_err(actix_web::error::ErrorInternalServerError)?;
+    let response = match forwarded_req.send().await {
+        Ok(resp) => resp,
+        Err(_) => return StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+    };
 
     // 构建返回的响应
-    let mut resp = HttpResponse::build(response.status());
-
-    // 明确列出需要保留的响应头部，确保只转发必要的信息
-    // 这种白名单方式比黑名单方式更安全，避免意外暴露后端信息
+    let mut resp_builder = Response::builder().status(response.status());
 
     // 复制必要的响应头部
     for (name, value) in response.headers() {
-        let name_str = name.as_str().to_lowercase();
-        if PRESERVE_HEADERS.contains(&name_str.as_str()) {
-            resp.insert_header((name.as_str(), value.as_bytes()));
+        if PRESERVE_HEADERS.contains(name) {
+            resp_builder = resp_builder.header(name.as_str(), value.as_bytes());
         }
     }
 
     // 添加缓存控制头部
     if should_cache(file_ext) {
-        resp.insert_header(("cache-control", "public, max-age=2592000"));
+        resp_builder = resp_builder.header("cache-control", "public, max-age=2592000");
     }
 
     // 流式传输响应体
-    Ok(resp.streaming(response))
+    match resp_builder.body(Body::from_stream(response.bytes_stream())) {
+        Ok(resp) => resp,
+        Err(_) => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+    }
 }

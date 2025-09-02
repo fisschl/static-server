@@ -1,33 +1,43 @@
-use actix_cors::Cors;
-use actix_web::middleware::Logger;
-use actix_web::{App, HttpServer};
-use env_logger::Env;
+use axum::{routing::get, Router};
+use tower_http::cors::{CorsLayer, AllowHeaders};
+use tower_http::trace::TraceLayer;
+use std::net::SocketAddr;
 
 // 导入我们的模块
 mod s3;
 
 use s3::serve_files;
 
-#[actix_web::main]
-async fn main() -> std::io::Result<()> {
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
     // 加载 .env 文件
     dotenv::dotenv().ok();
 
-    let addr = "0.0.0.0:3000";
+    // 初始化 tracing
+    tracing_subscriber::fmt::init();
 
-    env_logger::init_from_env(Env::default().default_filter_or("info"));
+    let addr: SocketAddr = "0.0.0.0:3000".parse()?;
 
-    HttpServer::new(move || {
-        let cors = Cors::permissive()
-            .allowed_methods(vec!["GET", "HEAD", "OPTIONS"])
-            .allowed_headers(vec!["*"]);
+    // 配置 CORS
+    let cors = CorsLayer::permissive()
+        .allow_methods([
+            http::Method::GET,
+            http::Method::HEAD,
+            http::Method::OPTIONS,
+        ])
+        .allow_headers(AllowHeaders::any());
 
-        App::new()
-            .wrap(Logger::default())
-            .wrap(cors)
-            .default_service(actix_web::web::get().to(serve_files))
-    })
-    .bind(addr)?
-    .run()
-    .await
+    let app = Router::new()
+        .fallback(get(serve_files))
+        .layer(TraceLayer::new_for_http())
+        .layer(cors);
+
+    tracing::info!("Server running on {}", addr);
+
+    axum::serve(
+        tokio::net::TcpListener::bind(addr).await?,
+        app.into_make_service()
+    ).await?;
+
+    Ok(())
 }
