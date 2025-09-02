@@ -11,9 +11,6 @@ use handlers::handle_files;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    // 加载 .env 文件
-    dotenv::dotenv().ok();
-
     // 初始化 tracing
     tracing_subscriber::fmt::init();
 

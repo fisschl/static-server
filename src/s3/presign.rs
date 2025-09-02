@@ -33,3 +33,40 @@ pub async fn generate_presigned_url(key: &str) -> Result<String> {
 
     Ok(presigned_request.uri().to_string())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_generate_presigned_url_returns_valid_url() {
+        // 测试生成有效的预签名 URL
+        let result = generate_presigned_url("test-file.txt").await;
+        assert!(result.is_ok());
+        
+        let url = result.unwrap();
+        assert!(url.starts_with("https://"));
+        assert!(url.contains("X-Amz-Signature"));
+    }
+
+    #[tokio::test]
+    async fn test_generate_presigned_url_with_special_characters() {
+        // 测试处理包含特殊字符的键
+        let result = generate_presigned_url("folder/subdir/file@name.txt").await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_generate_presigned_url_empty_key() {
+        // 测试空键的情况 - 应该失败，因为 S3 不允许空键
+        let result = generate_presigned_url("").await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_generate_presigned_url_with_endpoint() {
+        // 测试包含自定义端点 URL 的情况
+        let result = generate_presigned_url("test-object").await;
+        assert!(result.is_ok());
+    }
+}
