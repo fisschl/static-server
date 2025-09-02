@@ -1,3 +1,5 @@
+use super::spa_key;
+use crate::s3::generate_presigned_url;
 use axum::{
     body::Body,
     extract::Request,
@@ -5,9 +7,6 @@ use axum::{
     response::IntoResponse,
 };
 use reqwest::Client;
-
-use crate::s3::find_exists_key_with_cache;
-use crate::s3::generate_presigned_url;
 
 /// 不应缓存的文件扩展名。
 const NO_CACHE_EXTS: &[&str] = &[".html", ".htm"];
@@ -69,7 +68,7 @@ pub async fn handle_files(req: Request) -> impl IntoResponse {
     let pathname = if path.is_empty() { "" } else { path };
 
     // 查找文件
-    let file_key = match find_exists_key_with_cache(pathname).await {
+    let file_key = match spa_key::find_exists_key_with_cache(pathname).await {
         Some(key) => key,
         None => return (StatusCode::NOT_FOUND, "").into_response(),
     };
