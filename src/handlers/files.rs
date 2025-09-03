@@ -192,7 +192,7 @@ mod tests {
 
     #[test]
     /// 测试HTML文件缓存策略
-    /// 
+    ///
     /// 验证HTML文件（包括.htm和.html扩展名）不应被缓存，
     /// 确保动态内容能够及时更新
     fn test_should_cache_html_files() {
@@ -205,7 +205,7 @@ mod tests {
 
     #[test]
     /// 测试静态资源文件缓存策略
-    /// 
+    ///
     /// 验证CSS、JS、图片、字体、JSON和视频等静态资源文件
     /// 应该被缓存以提高性能
     fn test_should_cache_static_files() {
@@ -220,7 +220,7 @@ mod tests {
 
     #[test]
     /// 测试无扩展名文件缓存策略
-    /// 
+    ///
     /// 验证没有文件扩展名的文件应该被缓存，
     /// 包括普通文件和带路径的文件
     fn test_should_cache_files_without_extension() {
@@ -232,7 +232,7 @@ mod tests {
 
     #[test]
     /// 测试缓存策略的大小写不敏感性
-    /// 
+    ///
     /// 验证缓存策略对文件扩展名大小写不敏感，
     /// 确保不同大小写的文件扩展名得到一致处理
     fn test_should_cache_case_insensitive() {
@@ -245,7 +245,7 @@ mod tests {
 
     #[test]
     /// 测试缓存控制值格式
-    /// 
+    ///
     /// 验证CACHE_CONTROL_VALUE常量的格式正确，
     /// 包含public标识和30天的最大缓存时间
     fn test_cache_control_value_format() {
@@ -257,7 +257,7 @@ mod tests {
 
     #[tokio::test]
     /// 测试空路径重定向功能
-    /// 
+    ///
     /// 验证当访问根路径("/")时，系统能正确重定向到
     /// 预设的URL，确保用户不会看到空白页面
     async fn test_handle_files_empty_path_redirects() {
@@ -276,7 +276,7 @@ mod tests {
 
     #[tokio::test]
     /// 测试带斜杠空路径重定向功能
-    /// 
+    ///
     /// 验证当访问带双斜杠的路径("//")时，系统能正确
     /// 处理并重定向到预设URL，确保路径规范化
     async fn test_handle_files_empty_path_with_trailing_slash_redirects() {
@@ -295,7 +295,7 @@ mod tests {
 
     #[test]
     /// 测试头部常量值有效性
-    /// 
+    ///
     /// 验证CACHE_CONTROL_VALUE常量可以正确转换为
     /// HeaderValue类型，确保头部值的格式正确性
     fn test_header_value_constants() {

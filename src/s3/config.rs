@@ -10,20 +10,20 @@ use std::sync::Arc;
 static ENV_INITIALIZED: OnceCell<()> = OnceCell::new();
 
 /// 初始化环境变量（仅执行一次）
-/// 
+///
 /// # 环境变量要求
-/// 
+///
 /// ## 必需环境变量：
 /// - `AWS_ACCESS_KEY_ID` - AWS访问密钥ID
 /// - `AWS_SECRET_ACCESS_KEY` - AWS秘密访问密钥  
 /// - `AWS_REGION` - AWS区域，如 `us-east-1`、`cn-north-1`
 /// - `S3_BUCKET` - S3存储桶名称（必填）
-/// 
+///
 /// ## 可选环境变量：
 /// - `AWS_ENDPOINT_URL` - S3兼容服务端点（阿里云OSS等）
-/// 
+///
 /// # 示例配置
-/// 
+///
 /// ## 阿里云OSS：
 /// ```bash
 /// export AWS_ACCESS_KEY_ID=your-access-key-id
@@ -49,11 +49,11 @@ async fn init_s3_client() -> Arc<Client> {
 }
 
 /// 获取全局 S3 客户端实例
-/// 
+///
 /// # 注意
 /// 首次调用时会初始化S3客户端，需要确保以下环境变量已正确设置：
 /// - `AWS_ACCESS_KEY_ID`
-/// - `AWS_SECRET_ACCESS_KEY` 
+/// - `AWS_SECRET_ACCESS_KEY`
 /// - `AWS_REGION`
 /// - `S3_BUCKET`（必填）
 /// - `AWS_ENDPOINT_URL`（可选）
@@ -71,18 +71,19 @@ pub async fn get_s3_client() -> Arc<Client> {
 static BUCKET_NAME: OnceCell<String> = OnceCell::new();
 
 /// 获取全局 S3 存储桶名称
-/// 
+///
 /// # 注意
 /// 需要确保 `S3_BUCKET` 环境变量已正确设置，否则会panic
-/// 
+///
 /// # Panics
 /// 如果 `S3_BUCKET` 环境变量未设置，此函数会panic
 pub fn get_bucket_name() -> String {
     init_env(); // 确保环境变量已初始化
     BUCKET_NAME
         .get_or_init(|| {
-            std::env::var("S3_BUCKET")
-                .expect("S3_BUCKET environment variable must be set. Please set S3_BUCKET=your-bucket-name")
+            std::env::var("S3_BUCKET").expect(
+                "S3_BUCKET environment variable must be set. Please set S3_BUCKET=your-bucket-name",
+            )
         })
         .clone()
 }
@@ -93,7 +94,7 @@ mod tests {
 
     #[test]
     /// 测试获取存储桶名称的缓存功能
-    /// 
+    ///
     /// 验证多次调用get_bucket_name()函数时，返回的是同一个缓存值，
     /// 确保存储桶名称只从环境变量读取一次并缓存。
     fn test_get_bucket_name_returns_cached_value() {
