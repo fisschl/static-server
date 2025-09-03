@@ -92,6 +92,10 @@ mod tests {
     use super::*;
 
     #[test]
+    /// 测试获取存储桶名称的缓存功能
+    /// 
+    /// 验证多次调用get_bucket_name()函数时，返回的是同一个缓存值，
+    /// 确保存储桶名称只从环境变量读取一次并缓存。
     fn test_get_bucket_name_returns_cached_value() {
         let bucket1 = get_bucket_name();
         let bucket2 = get_bucket_name();

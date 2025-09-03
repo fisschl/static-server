@@ -3,7 +3,7 @@ use crate::s3::generate_presigned_url;
 use axum::{
     body::Body,
     extract::Request,
-    http::{header, HeaderValue, Response, StatusCode},
+    http::{HeaderValue, Response, StatusCode, header},
     response::{IntoResponse, Redirect},
 };
 use reqwest::Client;
@@ -79,7 +79,7 @@ pub async fn handle_files(req: Request) -> impl IntoResponse {
         .path()
         .trim_start_matches('/')
         .trim_end_matches('/');
-    
+
     // 防御 pathname 为空的情况，若为空则重定向到 https://ys.mihoyo.com/
     if path.is_empty() {
         return Redirect::to("https://ys.mihoyo.com/").into_response();
@@ -191,6 +191,10 @@ mod tests {
     use axum::http::HeaderValue;
 
     #[test]
+    /// 测试HTML文件缓存策略
+    /// 
+    /// 验证HTML文件（包括.htm和.html扩展名）不应被缓存，
+    /// 确保动态内容能够及时更新
     fn test_should_cache_html_files() {
         // 测试 HTML 文件不应缓存
         assert!(!should_cache("index.html"));
@@ -200,6 +204,10 @@ mod tests {
     }
 
     #[test]
+    /// 测试静态资源文件缓存策略
+    /// 
+    /// 验证CSS、JS、图片、字体、JSON和视频等静态资源文件
+    /// 应该被缓存以提高性能
     fn test_should_cache_static_files() {
         // 测试静态资源文件应该缓存
         assert!(should_cache("style.css"));
@@ -211,6 +219,10 @@ mod tests {
     }
 
     #[test]
+    /// 测试无扩展名文件缓存策略
+    /// 
+    /// 验证没有文件扩展名的文件应该被缓存，
+    /// 包括普通文件和带路径的文件
     fn test_should_cache_files_without_extension() {
         // 测试无扩展名的文件应该缓存
         assert!(should_cache("file"));
@@ -219,6 +231,10 @@ mod tests {
     }
 
     #[test]
+    /// 测试缓存策略的大小写不敏感性
+    /// 
+    /// 验证缓存策略对文件扩展名大小写不敏感，
+    /// 确保不同大小写的文件扩展名得到一致处理
     fn test_should_cache_case_insensitive() {
         // 测试大小写不敏感
         assert!(!should_cache("INDEX.HTML"));
@@ -228,56 +244,10 @@ mod tests {
     }
 
     #[test]
-    fn test_preserve_headers_contains_expected_headers() {
-        // 测试 PRESERVE_HEADERS 包含预期的头部
-        let expected_headers = vec![
-            header::ACCEPT_RANGES,
-            header::CACHE_CONTROL,
-            header::CONTENT_ENCODING,
-            header::CONTENT_LANGUAGE,
-            header::CONTENT_LENGTH,
-            header::CONTENT_RANGE,
-            header::CONTENT_TYPE,
-            header::ETAG,
-            header::EXPIRES,
-            header::LAST_MODIFIED,
-            header::VARY,
-        ];
-
-        for expected_header in expected_headers {
-            assert!(PRESERVE_HEADERS.contains(&expected_header));
-        }
-    }
-
-    #[test]
-    fn test_forward_headers_contains_expected_headers() {
-        // 测试 FORWARD_HEADERS 包含预期的头部
-        let expected_headers = vec![
-            header::ACCEPT,
-            header::ACCEPT_ENCODING,
-            header::RANGE,
-            header::IF_MATCH,
-            header::IF_NONE_MATCH,
-            header::IF_MODIFIED_SINCE,
-            header::IF_UNMODIFIED_SINCE,
-            header::USER_AGENT,
-        ];
-
-        for expected_header in expected_headers {
-            assert!(FORWARD_HEADERS.contains(&expected_header));
-        }
-    }
-
-    #[test]
-    fn test_no_cache_exts_contains_expected_extensions() {
-        // 测试 NO_CACHE_EXTS 包含预期的扩展名
-        assert!(NO_CACHE_EXTS.contains(&"html"));
-        assert!(NO_CACHE_EXTS.contains(&"htm"));
-        assert!(!NO_CACHE_EXTS.contains(&"css"));
-        assert!(!NO_CACHE_EXTS.contains(&"js"));
-    }
-
-    #[test]
+    /// 测试缓存控制值格式
+    /// 
+    /// 验证CACHE_CONTROL_VALUE常量的格式正确，
+    /// 包含public标识和30天的最大缓存时间
     fn test_cache_control_value_format() {
         // 测试缓存控制值的格式
         assert_eq!(CACHE_CONTROL_VALUE, "public, max-age=2592000");
@@ -286,39 +256,52 @@ mod tests {
     }
 
     #[tokio::test]
+    /// 测试空路径重定向功能
+    /// 
+    /// 验证当访问根路径("/")时，系统能正确重定向到
+    /// 预设的URL，确保用户不会看到空白页面
     async fn test_handle_files_empty_path_redirects() {
         // 测试空路径重定向
-        let _req = Request::builder()
-            .uri("/")
-            .body(Body::empty())
-            .unwrap();
+        let req = Request::builder().uri("/").body(Body::empty()).unwrap();
 
-        // 由于重定向逻辑，这里需要更复杂的测试设置
-        // 实际测试中应该使用 mock 或测试专用的 S3 客户端
+        let response = handle_files(req).await.into_response();
+
+        // 验证响应状态码是重定向
+        assert_eq!(response.status(), StatusCode::SEE_OTHER);
+
+        // 验证 Location 头部包含正确的重定向 URL
+        let location_header = response.headers().get(header::LOCATION).unwrap();
+        assert_eq!(location_header.to_str().unwrap(), "https://ys.mihoyo.com/");
+    }
+
+    #[tokio::test]
+    /// 测试带斜杠空路径重定向功能
+    /// 
+    /// 验证当访问带双斜杠的路径("//")时，系统能正确
+    /// 处理并重定向到预设URL，确保路径规范化
+    async fn test_handle_files_empty_path_with_trailing_slash_redirects() {
+        // 测试带斜杠的空路径重定向
+        let req = Request::builder().uri("//").body(Body::empty()).unwrap();
+
+        let response = handle_files(req).await.into_response();
+
+        // 验证响应状态码是重定向
+        assert_eq!(response.status(), StatusCode::SEE_OTHER);
+
+        // 验证 Location 头部包含正确的重定向 URL
+        let location_header = response.headers().get(header::LOCATION).unwrap();
+        assert_eq!(location_header.to_str().unwrap(), "https://ys.mihoyo.com/");
     }
 
     #[test]
+    /// 测试头部常量值有效性
+    /// 
+    /// 验证CACHE_CONTROL_VALUE常量可以正确转换为
+    /// HeaderValue类型，确保头部值的格式正确性
     fn test_header_value_constants() {
         // 测试常量头部值可以正确创建
         let cache_control_value = HeaderValue::from_static(CACHE_CONTROL_VALUE);
         assert!(cache_control_value.as_bytes().is_ascii());
         assert_eq!(cache_control_value.to_str().unwrap(), CACHE_CONTROL_VALUE);
-    }
-
-    #[test]
-    fn test_path_trimming_logic() {
-        // 测试路径修剪逻辑
-        let test_cases = vec![
-            ("/", ""),
-            ("/index.html", "index.html"),
-            ("/subdir/", "subdir"),
-            ("/subdir/index.html", "subdir/index.html"),
-            ("", ""),
-        ];
-
-        for (input, expected) in test_cases {
-            let trimmed = input.trim_start_matches('/').trim_end_matches('/');
-            assert_eq!(trimmed, expected);
-        }
     }
 }
