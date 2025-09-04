@@ -25,7 +25,6 @@ const PRESERVE_HEADERS: &[header::HeaderName] = &[
     header::ETAG,
     header::EXPIRES,
     header::LAST_MODIFIED,
-    header::VARY,
 ];
 
 /// 缓存控制头部值
