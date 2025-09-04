@@ -1,12 +1,14 @@
 use super::spa_key;
 use crate::s3::generate_presigned_url;
+use aws_sdk_s3::Client as S3Client;
 use axum::{
     body::Body,
-    extract::Request,
+    extract::{Request, Extension},
     http::{HeaderValue, Response, StatusCode, header},
     response::{IntoResponse, Redirect},
 };
 use reqwest::Client;
+use std::sync::Arc;
 
 /// 不应缓存的文件扩展名。
 const NO_CACHE_EXTS: &[&str] = &["html", "htm"];
@@ -69,11 +71,12 @@ fn should_cache(key: &str) -> bool {
 /// # 参数
 ///
 /// * `req` - HTTP 请求。
+/// * `Extension(s3_client)` - S3 客户端实例。
 ///
 /// # 返回值
 ///
 /// 包含文件内容或错误状态的 HTTP 响应。
-pub async fn handle_files(req: Request) -> impl IntoResponse {
+pub async fn handle_files(Extension(s3_client): Extension<Arc<S3Client>>, req: Request) -> impl IntoResponse {
     let path = req
         .uri()
         .path()
@@ -86,7 +89,7 @@ pub async fn handle_files(req: Request) -> impl IntoResponse {
     }
 
     // 生成预签名 URL
-    let presigned_url = match generate_presigned_url(path).await {
+    let presigned_url = match generate_presigned_url(s3_client.clone(), path).await {
         Ok(url) => url,
         Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
     };
@@ -135,13 +138,13 @@ pub async fn handle_files(req: Request) -> impl IntoResponse {
         }
     } else {
         // 如果响应是 404，则走 find_exists_key_with_cache 逻辑
-        let file_key = match spa_key::find_exists_key_with_cache(path).await {
+        let file_key = match spa_key::find_exists_key_with_cache(s3_client.clone(), path).await {
             Some(key) => key,
             None => return (StatusCode::NOT_FOUND, "File not found").into_response(),
         };
 
         // 重新生成预签名 URL
-        let presigned_url = match generate_presigned_url(&file_key).await {
+        let presigned_url = match generate_presigned_url(s3_client.clone(), &file_key).await {
             Ok(url) => url,
             Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
         };

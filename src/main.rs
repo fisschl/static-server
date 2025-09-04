@@ -6,7 +6,7 @@ async fn main() -> anyhow::Result<()> {
     // 初始化 tracing
     tracing_subscriber::fmt::init();
 
-    let app = app();
+    let app = app().await;
 
     let addr: SocketAddr = "0.0.0.0:3000".parse()?;
     tracing::info!("Server running on {}", addr);
