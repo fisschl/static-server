@@ -4,9 +4,9 @@
 
 use crate::s3::config;
 use anyhow::Result;
-use aws_sdk_s3::{presigning::PresigningConfig, Client};
-use std::time::Duration;
+use aws_sdk_s3::{Client, presigning::PresigningConfig};
 use std::sync::Arc;
+use std::time::Duration;
 
 /// 为 S3 键生成预签名 URL。
 ///

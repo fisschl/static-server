@@ -3,7 +3,7 @@ use crate::s3::generate_presigned_url;
 use aws_sdk_s3::Client as S3Client;
 use axum::{
     body::Body,
-    extract::{Request, Extension},
+    extract::{Extension, Request},
     http::{HeaderValue, Response, StatusCode, header},
     response::{IntoResponse, Redirect},
 };
@@ -75,7 +75,10 @@ fn should_cache(key: &str) -> bool {
 /// # 返回值
 ///
 /// 包含文件内容或错误状态的 HTTP 响应。
-pub async fn handle_files(Extension(s3_client): Extension<Arc<S3Client>>, req: Request) -> impl IntoResponse {
+pub async fn handle_files(
+    Extension(s3_client): Extension<Arc<S3Client>>,
+    req: Request,
+) -> impl IntoResponse {
     let path = req
         .uri()
         .path()

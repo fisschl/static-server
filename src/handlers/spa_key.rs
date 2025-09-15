@@ -1,9 +1,9 @@
+use crate::s3::config::get_bucket_name;
+use aws_sdk_s3::Client as S3Client;
 use moka::future::Cache;
 use once_cell::sync::Lazy;
 use std::sync::Arc;
 use std::time::Duration;
-use crate::s3::config::get_bucket_name;
-use aws_sdk_s3::Client as S3Client;
 
 /// 创建一个静态缓存实例，用于缓存find_exists_key的结果
 /// 缓存配置：
@@ -30,7 +30,10 @@ static PATH_EXISTS_CACHE: Lazy<Arc<Cache<String, Option<String>>>> = Lazy::new(|
 /// # 返回值
 ///
 /// 要提供的文件的 S3 键，如果未找到文件则返回 `None`。
-pub async fn find_exists_key_with_cache(s3_client: Arc<S3Client>, pathname: &str) -> Option<String> {
+pub async fn find_exists_key_with_cache(
+    s3_client: Arc<S3Client>,
+    pathname: &str,
+) -> Option<String> {
     // 转换为 String 以便在缓存中使用
     let path_str = pathname.to_string();
 

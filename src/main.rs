@@ -3,6 +3,7 @@ use static_server::app;
 use std::net::SocketAddr;
 use tokio::net::TcpListener;
 use tracing::Level;
+use tracing_subscriber::fmt::time::LocalTime;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -10,6 +11,7 @@ async fn main() -> anyhow::Result<()> {
 
     tracing_subscriber::fmt()
         .pretty()
+        .with_timer(LocalTime::rfc_3339())
         .with_max_level(Level::DEBUG)
         .init();
 
