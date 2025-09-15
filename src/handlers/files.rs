@@ -1,5 +1,4 @@
 use super::spa_key;
-use crate::s3::generate_presigned_url;
 use aws_sdk_s3::Client as S3Client;
 use axum::{
     body::Body,
@@ -7,8 +6,10 @@ use axum::{
     http::{HeaderValue, Response, StatusCode, header},
     response::{IntoResponse, Redirect},
 };
+use moka::future::Cache;
 use reqwest::Client;
 use std::sync::Arc;
+use crate::utils::s3::{generate_presigned_url, get_bucket_name};
 
 /// 不应缓存的文件扩展名。
 const NO_CACHE_EXTS: &[&str] = &["html", "htm"];
@@ -62,6 +63,40 @@ fn should_cache(key: &str) -> bool {
     !NO_CACHE_EXTS.contains(&ext.to_lowercase().as_str())
 }
 
+/// 带缓存的查找请求文件的 S3 键。
+///
+/// 此函数是find_exists_key的缓存版本，使用通过Extension注入的moka缓存来避免重复的 S3 请求。
+///
+/// # 参数
+///
+/// * `s3_client` - S3 客户端实例。
+/// * `cache` - 通过Extension注入的缓存实例。
+/// * `pathname` - 请求的文件路径。
+///
+/// # 返回值
+///
+/// 要提供的文件的 S3 键，如果未找到文件则返回 `None`。
+async fn find_exists_key_with_cache(
+    s3_client: Arc<S3Client>,
+    cache: Arc<Cache<String, Option<String>>>,
+    pathname: &str,
+) -> Option<String> {
+    // 转换为 String 以便在缓存中使用
+    let path_str = pathname.to_string();
+
+    // 首先检查缓存
+    if let Some(result) = cache.get(&path_str).await {
+        return result.clone();
+    }
+
+    // 计算结果
+    let result = spa_key::find_exists_key(s3_client.clone(), pathname).await;
+
+    // 将结果存入缓存并返回
+    cache.insert(path_str, result.clone()).await;
+    result
+}
+
 /// 处理文件请求并为静态内容提供服务。
 ///
 /// 此函数尝试在 S3 存储桶中查找请求的文件。如果未找到文件，
@@ -71,12 +106,14 @@ fn should_cache(key: &str) -> bool {
 ///
 /// * `req` - HTTP 请求。
 /// * `Extension(s3_client)` - S3 客户端实例。
+/// * `Extension(cache)` - 通过Extension注入的缓存实例。
 ///
 /// # 返回值
 ///
 /// 包含文件内容或错误状态的 HTTP 响应。
 pub async fn handle_files(
     Extension(s3_client): Extension<Arc<S3Client>>,
+    Extension(cache): Extension<Arc<Cache<String, Option<String>>>>,
     req: Request,
 ) -> impl IntoResponse {
     let path = req
@@ -91,7 +128,7 @@ pub async fn handle_files(
     }
 
     // 生成预签名 URL
-    let presigned_url = match generate_presigned_url(s3_client.clone(), path).await {
+    let presigned_url = match generate_presigned_url(s3_client.clone(), &get_bucket_name(), path).await {
         Ok(url) => url,
         Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
     };
@@ -140,13 +177,13 @@ pub async fn handle_files(
         }
     } else {
         // 如果响应是 404，则走 find_exists_key_with_cache 逻辑
-        let file_key = match spa_key::find_exists_key_with_cache(s3_client.clone(), path).await {
+        let file_key = match find_exists_key_with_cache(s3_client.clone(), cache, path).await {
             Some(key) => key,
             None => return (StatusCode::NOT_FOUND, "File not found").into_response(),
         };
 
         // 重新生成预签名 URL
-        let presigned_url = match generate_presigned_url(s3_client.clone(), &file_key).await {
+        let presigned_url = match generate_presigned_url(s3_client.clone(), &get_bucket_name(), &file_key).await {
             Ok(url) => url,
             Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
         };

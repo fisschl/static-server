@@ -1,26 +1,32 @@
-//! S3预签名URL模块
-//!
-//! 该模块负责生成S3对象的预签名URL。
-
-use crate::s3::config;
 use anyhow::Result;
 use aws_sdk_s3::{Client, presigning::PresigningConfig};
 use std::sync::Arc;
 use std::time::Duration;
+
+/// 获取全局 S3 存储桶名称
+///
+/// # 注意
+/// 需要确保 `S3_BUCKET` 环境变量已正确设置，否则会panic
+///
+/// # Panics
+/// 如果 `S3_BUCKET` 环境变量未设置，此函数会panic
+pub fn get_bucket_name() -> String {
+    std::env::var("S3_BUCKET")
+        .expect("S3_BUCKET environment variable must be set. Please set S3_BUCKET=your-bucket-name")
+}
 
 /// 为 S3 键生成预签名 URL。
 ///
 /// # 参数
 ///
 /// * `s3_client` - S3 客户端实例。
+/// * `bucket_name` - S3 存储桶名称。
 /// * `key` - 要为其生成预签名 URL 的 S3 键。
 ///
 /// # 返回值
 ///
 /// 预签名 URL 的字符串表示。
-pub async fn generate_presigned_url(s3_client: Arc<Client>, key: &str) -> Result<String> {
-    let bucket_name = config::get_bucket_name();
-
+pub async fn generate_presigned_url(s3_client: Arc<Client>, bucket_name: &str, key: &str) -> Result<String> {
     // 创建预签名配置，设置 URL 1 小时后过期
     let presigning_config = PresigningConfig::expires_in(Duration::from_secs(3600))?;
 
