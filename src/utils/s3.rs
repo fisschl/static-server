@@ -26,7 +26,11 @@ pub fn get_bucket_name() -> String {
 /// # 返回值
 ///
 /// 预签名 URL 的字符串表示。
-pub async fn generate_presigned_url(s3_client: Arc<Client>, bucket_name: &str, key: &str) -> Result<String> {
+pub async fn generate_presigned_url(
+    s3_client: Arc<Client>,
+    bucket_name: &str,
+    key: &str,
+) -> Result<String> {
     // 创建预签名配置，设置 URL 1 小时后过期
     let presigning_config = PresigningConfig::expires_in(Duration::from_secs(3600))?;
 

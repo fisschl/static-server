@@ -8,7 +8,6 @@
 - **SPA路由支持**: 自动回退到index.html以支持单页应用路由
 - **智能缓存**: 基于文件扩展名的智能缓存控制
 - **预签名URL**: 使用S3预签名URL确保安全访问
-- **高性能缓存**: 使用moka缓存减少重复S3请求
 - **CORS支持**: 完整的跨域资源共享支持
 - **请求转发**: 支持Range请求、条件请求等高级HTTP功能
 - **Docker部署**: 完整的Docker容器化支持
@@ -18,7 +17,7 @@
 
 - **框架**: Axum (基于Tokio的异步Web框架)
 - **S3客户端**: AWS SDK for Rust
-- **缓存**: Moka高性能缓存库
+- **缓存**: cached 宏缓存库
 - **HTTP客户端**: Reqwest
 - **日志**: Tracing + Tracing Subscriber
 - **配置**: dotenv环境变量管理

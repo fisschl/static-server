@@ -1,11 +1,9 @@
 pub mod handlers;
 pub mod utils;
 
-use crate::utils::cache::create_short_cache;
 use axum::routing::get;
 use http::Method;
 use std::sync::Arc;
-use aws_config::BehaviorVersion;
 use tower_http::cors::{AllowHeaders, CorsLayer};
 use tower_http::trace::TraceLayer;
 
@@ -20,16 +18,12 @@ pub async fn app() -> axum::Router {
     // AWS_SECRET_ACCESS_KEY=your-access-key-secret
     // AWS_REGION=cn-hangzhou
     // AWS_ENDPOINT_URL=https://oss-cn-hangzhou.aliyuncs.com
-    let s3_config = aws_config::load_defaults(BehaviorVersion::latest()).await;
+    let s3_config = aws_config::load_from_env().await;
     let s3_client = Arc::new(aws_sdk_s3::Client::new(&s3_config));
-
-    // 初始化短时缓存
-    let short_cache = create_short_cache();
 
     axum::Router::new()
         .fallback(get(handlers::handle_files))
         .layer(TraceLayer::new_for_http())
         .layer(cors)
         .layer(axum::extract::Extension(s3_client))
-        .layer(axum::extract::Extension(short_cache))
 }
