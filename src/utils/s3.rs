@@ -1,5 +1,6 @@
 use anyhow::Result;
 use aws_sdk_s3::{Client, presigning::PresigningConfig};
+use cached::proc_macro::cached;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -10,6 +11,9 @@ use std::time::Duration;
 ///
 /// # Panics
 /// 如果 `S3_BUCKET` 环境变量未设置，此函数会panic
+#[cached(
+    time = 600  // 10分钟过期
+)]
 pub fn get_bucket_name() -> String {
     std::env::var("S3_BUCKET")
         .expect("S3_BUCKET environment variable must be set. Please set S3_BUCKET=your-bucket-name")
