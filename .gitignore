@@ -24,17 +24,14 @@ Thumbs.db
 ehthumbs.db
 
 # Editor directories and files
-.vscode/
-!.vscode/extensions.json
-!.vscode/settings.json
-.idea/
+.idea
 *.swp
 *.swo
 *~
 
 # Cache directories
-.cache/
-.temp/
+.cache
+.temp
 
 # Testing
 coverage
@@ -46,7 +43,5 @@ coverage
 *.key
 *.cert
 
-
 # Added by cargo
-
-/target
+target
