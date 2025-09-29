@@ -21,10 +21,9 @@ use std::sync::Arc;
 /// 如果文件应该被缓存则返回 `true`，否则返回 `false`。
 fn should_cache(key: &str) -> bool {
     // 获取文件扩展名
-    let ext = match std::path::Path::new(key).extension() {
-        Some(ext) => ext.to_str().unwrap_or(""),
-        None => "",
-    };
+    let ext = std::path::Path::new(key)
+        .extension()
+        .map_or("", |ext| ext.to_str().unwrap_or(""));
 
     // 转换为小写进行比较
     !NO_CACHE_EXTS.contains(&ext.to_lowercase().as_str())
@@ -43,6 +42,10 @@ fn should_cache(key: &str) -> bool {
 /// # 返回值
 ///
 /// 包含文件内容或错误状态的 HTTP 响应。
+///
+/// # Errors
+///
+/// 当无法生成预签名 URL 或发送 HTTP 请求失败时返回错误。
 pub async fn fetch_and_proxy_file(
     s3_client: Arc<S3Client>,
     headers: &http::HeaderMap,

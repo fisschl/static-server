@@ -59,7 +59,7 @@ pub async fn find_exists_key(
     // 获取第一级目录（只处理正斜杠，因为 URL 总是使用正斜杠）
     let first_level_dir = pathname.split('/').next().unwrap_or("");
     if !first_level_dir.is_empty() {
-        let first_level_index = format!("{}/{}/{}", WWW_PREFIX, first_level_dir, INDEX_FILE);
+        let first_level_index = format!("{WWW_PREFIX}/{first_level_dir}/{INDEX_FILE}");
         if check_key_exists(s3_client.clone(), bucket_name, &first_level_index).await {
             return Some(first_level_index);
         }

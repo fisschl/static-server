@@ -1,6 +1,6 @@
+use super::constants::WWW_PREFIX;
 use super::proxy::fetch_and_proxy_file;
 use super::spa_key;
-use super::constants::WWW_PREFIX;
 use crate::utils::s3::get_bucket_name;
 use aws_sdk_s3::Client as S3Client;
 use axum::{
@@ -39,8 +39,8 @@ pub async fn handle_files(
     }
 
     // 在 /www 前缀下查找文件
-    let s3_path = format!("{}/{}", WWW_PREFIX, path);
-    
+    let s3_path = format!("{WWW_PREFIX}/{path}");
+
     // 尝试直接获取请求的文件
     match fetch_and_proxy_file(s3_client.clone(), req.headers(), &s3_path).await {
         // 如果成功获取文件且不是 404，直接返回响应
@@ -55,9 +55,9 @@ pub async fn handle_files(
 
     // 如果响应是 404，则走 find_exists_key 逻辑（现在已经有缓存了）
     let bucket_name = get_bucket_name();
-    let file_key = match spa_key::find_exists_key(s3_client.clone(), &bucket_name, path).await {
-        Some(key) => key,
-        None => return StatusCode::NOT_FOUND.into_response(),
+    let Some(file_key) = spa_key::find_exists_key(s3_client.clone(), &bucket_name, path).await
+    else {
+        return StatusCode::NOT_FOUND.into_response();
     };
 
     // 使用 fetch_and_proxy_file 获取回退文件

@@ -14,6 +14,7 @@ use std::time::Duration;
 #[cached(
     time = 600  // 10分钟过期
 )]
+#[must_use]
 pub fn get_bucket_name() -> String {
     std::env::var("S3_BUCKET")
         .expect("S3_BUCKET environment variable must be set. Please set S3_BUCKET=your-bucket-name")
@@ -30,6 +31,10 @@ pub fn get_bucket_name() -> String {
 /// # 返回值
 ///
 /// 预签名 URL 的字符串表示。
+///
+/// # Errors
+///
+/// 当无法生成预签名 URL 时返回错误。
 #[cached(
     key = "String",
     convert = r#"{ format!("{}:{}", bucket_name, object) }"#,
