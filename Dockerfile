@@ -1,5 +1,5 @@
-FROM open-source-cn-shanghai.cr.volces.com/open/rust:1 AS chef
-WORKDIR /app
+FROM rust:1 AS chef
+WORKDIR /root
 RUN cargo install cargo-chef
 
 # Planner 阶段：分析项目依赖
@@ -9,28 +9,17 @@ RUN cargo chef prepare --recipe-path recipe.json
 
 # Builder 阶段：构建依赖和项目
 FROM chef AS builder
-COPY --from=planner /app/recipe.json recipe.json
-
+WORKDIR /root
+COPY --from=planner /root/recipe.json recipe.json
 # 构建依赖（这将被缓存）
 RUN cargo chef cook --release --recipe-path recipe.json
-
 # 复制源代码
 COPY . .
-
 # 构建项目
 RUN cargo build --release
 
-# 运行阶段：使用标准 Debian 12 镜像
-FROM open-source-cn-shanghai.cr.volces.com/open/rust:1
-
-# 设置工作目录
-WORKDIR /app
-
-# 从构建阶段复制编译好的二进制文件
-COPY --from=builder /app/target/release/static-server ./static-server
-
-# 暴露端口
-EXPOSE 3000
-
-# 设置启动命令
+# 最终阶段：创建包含构建产物的镜像
+FROM rust:1
+WORKDIR /root
+COPY --from=builder /root/target/release/static-server ./static-server
 CMD ["./static-server"]
