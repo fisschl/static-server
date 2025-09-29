@@ -1,5 +1,6 @@
 use super::proxy::fetch_and_proxy_file;
 use super::spa_key;
+use super::constants::WWW_PREFIX;
 use crate::utils::s3::get_bucket_name;
 use aws_sdk_s3::Client as S3Client;
 use axum::{
@@ -37,8 +38,11 @@ pub async fn handle_files(
         return Redirect::to("https://ys.mihoyo.com/").into_response();
     }
 
+    // 在 /www 前缀下查找文件
+    let s3_path = format!("{}/{}", WWW_PREFIX, path);
+    
     // 尝试直接获取请求的文件
-    match fetch_and_proxy_file(s3_client.clone(), req.headers(), path).await {
+    match fetch_and_proxy_file(s3_client.clone(), req.headers(), &s3_path).await {
         // 如果成功获取文件且不是 404，直接返回响应
         Ok(response) if response.status() != StatusCode::NOT_FOUND => {
             return response.into_response();

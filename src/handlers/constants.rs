@@ -1,5 +1,8 @@
 use axum::http::header;
 
+/// S3 存储桶中的 www 前缀
+pub const WWW_PREFIX: &str = "www";
+
 /// 不应缓存的文件扩展名。
 pub const NO_CACHE_EXTS: &[&str] = &["html", "htm"];
 

@@ -1,3 +1,4 @@
+use super::constants::WWW_PREFIX;
 use aws_sdk_s3::Client as S3Client;
 use cached::proc_macro::cached;
 use std::sync::Arc;
@@ -54,11 +55,11 @@ pub async fn find_exists_key(
     bucket_name: &str,
     pathname: &str,
 ) -> Option<String> {
-    // 1. 检查第一级目录中的 index.html
+    // 1. 检查第一级目录中的 index.html（在 www 前缀下）
     // 获取第一级目录（只处理正斜杠，因为 URL 总是使用正斜杠）
     let first_level_dir = pathname.split('/').next().unwrap_or("");
     if !first_level_dir.is_empty() {
-        let first_level_index = format!("{}/{}", first_level_dir, INDEX_FILE);
+        let first_level_index = format!("{}/{}/{}", WWW_PREFIX, first_level_dir, INDEX_FILE);
         if check_key_exists(s3_client.clone(), bucket_name, &first_level_index).await {
             return Some(first_level_index);
         }
