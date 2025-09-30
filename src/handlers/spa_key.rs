@@ -1,4 +1,4 @@
-use super::constants::WWW_PREFIX;
+use super::constants::{INDEX_FILE, WWW_PREFIX};
 use aws_sdk_s3::Client as S3Client;
 use cached::proc_macro::cached;
 use std::sync::Arc;
@@ -26,9 +26,6 @@ pub async fn check_key_exists(s3_client: Arc<S3Client>, bucket_name: &str, key: 
 
     result.is_ok()
 }
-
-/// 默认的索引文件名
-const INDEX_FILE: &str = "index.html";
 
 /// 查找请求文件的 S3 键。
 ///

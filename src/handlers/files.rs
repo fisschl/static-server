@@ -1,4 +1,4 @@
-use super::constants::WWW_PREFIX;
+use super::constants::{DEFAULT_REDIRECT_URL, WWW_PREFIX};
 use super::proxy::fetch_and_proxy_file;
 use super::spa_key;
 use crate::utils::s3::get_bucket_name;
@@ -33,9 +33,9 @@ pub async fn handle_files(
         .trim_start_matches('/')
         .trim_end_matches('/');
 
-    // 防御 pathname 为空的情况，若为空则重定向到 https://ys.mihoyo.com/
+    // 防御 pathname 为空的情况，若为空则重定向到默认 URL
     if path.is_empty() {
-        return Redirect::to("https://ys.mihoyo.com/").into_response();
+        return Redirect::to(DEFAULT_REDIRECT_URL).into_response();
     }
 
     // 在 /www 前缀下查找文件

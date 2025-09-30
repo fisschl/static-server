@@ -3,6 +3,12 @@ use axum::http::header;
 /// S3 存储桶中的 www 前缀
 pub const WWW_PREFIX: &str = "www";
 
+/// 默认重定向 URL
+pub const DEFAULT_REDIRECT_URL: &str = "https://ys.mihoyo.com/";
+
+/// 默认的索引文件名
+pub const INDEX_FILE: &str = "index.html";
+
 /// 不应缓存的文件扩展名。
 pub const NO_CACHE_EXTS: &[&str] = &["html", "htm"];
 

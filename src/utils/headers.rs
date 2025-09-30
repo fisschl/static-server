@@ -10,10 +10,7 @@ use http::HeaderMap;
 /// # 返回值
 ///
 /// 包含指定头部的新头部映射
-pub fn clone_headers(
-    source: &HeaderMap,
-    allowed_headers: &[http::HeaderName],
-) -> HeaderMap {
+pub fn clone_headers(source: &HeaderMap, allowed_headers: &[http::HeaderName]) -> HeaderMap {
     let mut result = HeaderMap::new();
 
     for header_name in allowed_headers {
@@ -24,5 +21,3 @@ pub fn clone_headers(
 
     result
 }
-
-
