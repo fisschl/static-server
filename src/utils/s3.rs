@@ -7,17 +7,18 @@ use std::time::Duration;
 /// 获取全局 S3 存储桶名称
 ///
 /// # 注意
-/// 需要确保 `S3_BUCKET` 环境变量已正确设置，否则会panic
+/// 需要确保 `AWS_BUCKET` 环境变量已正确设置，否则会panic
 ///
 /// # Panics
-/// 如果 `S3_BUCKET` 环境变量未设置，此函数会panic
+/// 如果 `AWS_BUCKET` 环境变量未设置，此函数会panic
 #[cached(
     time = 600  // 10分钟过期
 )]
 #[must_use]
 pub fn get_bucket_name() -> String {
-    std::env::var("S3_BUCKET")
-        .expect("S3_BUCKET environment variable must be set. Please set S3_BUCKET=your-bucket-name")
+    std::env::var("AWS_BUCKET").expect(
+        "AWS_BUCKET environment variable must be set. Please set AWS_BUCKET=your-bucket-name",
+    )
 }
 
 /// 为 S3 键生成预签名 URL。
