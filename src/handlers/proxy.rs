@@ -1,6 +1,7 @@
 use crate::handlers::constants::{
     CACHE_CONTROL_VALUE, FORWARD_HEADERS, NO_CACHE_EXTS, PRESERVE_HEADERS,
 };
+use crate::utils::headers::clone_headers;
 use crate::utils::s3::{generate_presigned_url, get_bucket_name};
 use aws_sdk_s3::Client as S3Client;
 use axum::{
@@ -62,12 +63,8 @@ pub async fn fetch_and_proxy_file(
     let client = Client::new();
 
     // 构建转发请求并复制必要的头部
-    let mut forwarded_req = client.get(&presigned_url);
-    for header_name in FORWARD_HEADERS {
-        if let Some(value) = headers.get(header_name) {
-            forwarded_req = forwarded_req.header(header_name, value);
-        }
-    }
+    let forwarded_headers = clone_headers(headers, FORWARD_HEADERS);
+    let forwarded_req = client.get(&presigned_url).headers(forwarded_headers);
 
     // 发送请求并获取响应
     let response = match forwarded_req.send().await {
