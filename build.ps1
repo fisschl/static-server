@@ -15,6 +15,3 @@ docker cp "${containerId}:/root/static-server" "./target/static-server"
 
 # 删除临时容器
 docker rm $containerId
-
-# 上传构建产物到 TOS
-tosutil cp "./target/static-server" "tos://elysia/apps/static-server"
