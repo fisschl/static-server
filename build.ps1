@@ -17,4 +17,4 @@ docker cp "${containerId}:/root/static-server" "./target/static-server"
 docker rm $containerId
 
 # 上传构建产物到 TOS
-tosutil cp "./target/static-server" "tos://elysia/static-server"
+tosutil cp "./target/static-server" "tos://elysia/apps/static-server"
