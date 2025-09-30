@@ -14,10 +14,6 @@ pub async fn app() -> axum::Router {
         .allow_headers(AllowHeaders::any());
 
     // 初始化 S3 客户端
-    // AWS_ACCESS_KEY_ID=your-access-key-id
-    // AWS_SECRET_ACCESS_KEY=your-access-key-secret
-    // AWS_REGION=cn-hangzhou
-    // AWS_ENDPOINT_URL=https://oss-cn-hangzhou.aliyuncs.com
     let s3_config = aws_config::load_from_env().await;
     let s3_client = Arc::new(aws_sdk_s3::Client::new(&s3_config));
 

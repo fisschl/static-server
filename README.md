@@ -20,7 +20,7 @@
 - **缓存**: cached 宏缓存库
 - **HTTP 客户端**: Reqwest
 - **日志**: Tracing + Tracing Subscriber
-- **配置**: dotenv 环境变量管理
+- **配置**: dotenvy 环境变量管理
 
 ## 环境变量配置
 
@@ -35,9 +35,6 @@ AWS_ENDPOINT_URL=your_s3_endpoint  # 例如：https://oss-cn-hangzhou.aliyuncs.c
 
 # 必需配置
 AWS_BUCKET=your_bucket_name  # S3存储桶名称
-
-# 可选配置
-PORT=3000  # 服务器监听端口，默认3000
 ```
 
 ## 本地开发
@@ -58,20 +55,6 @@ cargo run
 cargo run --release
 ```
 
-### 环境变量设置
-
-创建 `.env` 文件或在命令行中设置环境变量：
-
-```bash
-# .env 文件示例
-AWS_ACCESS_KEY_ID=your_access_key_id
-AWS_SECRET_ACCESS_KEY=your_secret_access_key
-AWS_REGION=cn-hangzhou
-AWS_ENDPOINT_URL=https://oss-cn-hangzhou.aliyuncs.com
-AWS_BUCKET=your-bucket-name
-PORT=3000
-```
-
 ## Docker 部署
 
 ### 构建 Docker 镜像
@@ -84,36 +67,13 @@ PORT=3000
 docker build -t static-server .
 ```
 
-### 运行 Docker 容器
+### 运行可执行文件
+
+构建完成后，可执行文件会提取到 `target/static-server`：
 
 ```bash
-docker run -d -p 3000:3000 \
-  -e AWS_ACCESS_KEY_ID=your_access_key_id \
-  -e AWS_SECRET_ACCESS_KEY=your_secret_access_key \
-  -e AWS_REGION=your_region \
-  -e AWS_ENDPOINT_URL=your_s3_endpoint \
-  -e AWS_BUCKET=your_bucket_name \
-  static-server
-```
-
-### 使用 Docker Compose
-
-创建 `docker-compose.yml`：
-
-```yaml
-version: "3.8"
-services:
-  static-server:
-    image: static-server
-    ports:
-      - "3000:3000"
-    environment:
-      - AWS_ACCESS_KEY_ID=your_access_key_id
-      - AWS_SECRET_ACCESS_KEY=your_secret_access_key
-      - AWS_REGION=your_region
-      - AWS_ENDPOINT_URL=your_s3_endpoint
-      - AWS_BUCKET=your_bucket_name
-    restart: unless-stopped
+# 直接运行
+./target/static-server
 ```
 
 ## 缓存策略
@@ -156,14 +116,17 @@ services:
 
 ```
 src/
-├── main.rs          # 应用入口点
-├── lib.rs           # 应用配置和路由
-├── handlers/        # 请求处理器
-│   ├── files.rs     # 文件处理逻辑
-│   └── spa_key.rs   # SPA路由支持
-└── s3/             # S3相关功能
-    ├── config.rs    # S3配置
-    └── presign.rs   # 预签名URL生成
+├── main.rs              # 应用入口点
+├── lib.rs               # 应用配置和路由
+├── handlers/            # 请求处理器
+│   ├── constants.rs     # 常量定义
+│   ├── files.rs         # 文件处理逻辑
+│   ├── proxy.rs         # S3代理转发
+│   └── spa_key.rs       # SPA路由支持
+└── utils/               # 工具函数
+    ├── headers.rs       # HTTP头部工具
+    ├── s3.rs           # S3相关工具
+    └── mod.rs          # 模块声明
 ```
 
 ## 许可证
