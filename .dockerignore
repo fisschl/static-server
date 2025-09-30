@@ -33,6 +33,3 @@ tests/
 benches/
 examples/
 **/*.md
-
-# Cargo lock file (如果使用特定版本)
-# Cargo.lock

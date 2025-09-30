@@ -22,4 +22,3 @@ RUN cargo build --release
 FROM rust:1
 WORKDIR /root
 COPY --from=builder /root/target/release/static-server ./static-server
-CMD ["./static-server"]
