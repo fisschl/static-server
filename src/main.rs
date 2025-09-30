@@ -1,4 +1,4 @@
-use dotenv::dotenv;
+use dotenvy::dotenv;
 use static_server::app;
 use std::net::SocketAddr;
 use tokio::net::TcpListener;
