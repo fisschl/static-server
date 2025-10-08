@@ -16,6 +16,7 @@ pub const NO_CACHE_EXTS: &[&str] = &["html", "htm"];
 pub const PRESERVE_HEADERS: &[header::HeaderName] = &[
     header::ACCEPT_RANGES,
     header::CACHE_CONTROL,
+    header::CONTENT_DISPOSITION,
     header::CONTENT_ENCODING,
     header::CONTENT_LANGUAGE,
     header::CONTENT_LENGTH,
@@ -24,6 +25,7 @@ pub const PRESERVE_HEADERS: &[header::HeaderName] = &[
     header::ETAG,
     header::EXPIRES,
     header::LAST_MODIFIED,
+    header::VARY,
 ];
 
 /// 缓存控制头部值
@@ -33,6 +35,7 @@ pub const CACHE_CONTROL_VALUE: &str = "public, max-age=2592000";
 pub const FORWARD_HEADERS: &[header::HeaderName] = &[
     header::ACCEPT,
     header::ACCEPT_ENCODING,
+    header::ACCEPT_LANGUAGE,
     header::RANGE,
     header::IF_MATCH,
     header::IF_NONE_MATCH,
