@@ -6,7 +6,7 @@ use crate::utils::s3::{generate_presigned_url, get_bucket_name};
 use aws_sdk_s3::Client as S3Client;
 use axum::{
     body::Body,
-    http::{HeaderValue, Response, StatusCode, header},
+    http::{Response, StatusCode, header},
 };
 use reqwest::Client;
 use std::sync::Arc;
@@ -76,18 +76,15 @@ pub async fn fetch_and_proxy_file(
     let mut resp_builder = Response::builder().status(response.status());
 
     // 复制必要的响应头部
-    for (name, value) in response.headers() {
-        if PRESERVE_HEADERS.contains(name) {
-            resp_builder = resp_builder.header(name.as_str(), value.as_bytes());
+    for header_name in PRESERVE_HEADERS {
+        if let Some(value) = response.headers().get(header_name) {
+            resp_builder = resp_builder.header(header_name, value);
         }
     }
 
     // 添加缓存控制头部（仅对成功响应）
     if response.status().is_success() && should_cache(key) {
-        resp_builder = resp_builder.header(
-            header::CACHE_CONTROL,
-            HeaderValue::from_static(CACHE_CONTROL_VALUE),
-        );
+        resp_builder = resp_builder.header(header::CACHE_CONTROL, CACHE_CONTROL_VALUE);
     }
 
     // 流式传输响应体
