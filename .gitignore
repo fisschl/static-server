@@ -1,50 +1,48 @@
-# Rust
-**/target
+# Rust artifacts and build cache
+**/target/
 *.rs.bk
 
 # Environment variables
 .env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
+.env.*
 .env.*.local
 
-# Logs
-logs
+# Log files
+logs/
 *.log
 
-# OS generated files
+# Operating system generated files
 .DS_Store
 .DS_Store?
 ._*
 .Spotlight-V100
 .Trashes
-Thumbs.db
 ehthumbs.db
+Thumbs.db
 
-# Editor directories and files
-.idea
+# Editor and IDE files
+.idea/
+.vscode/
 *.swp
 *.swo
 *~
 
-# Cache directories
-.cache
-.temp
+# Temporary and cache directories
+.cache/
+.temp/
+*.tmp
 
-# Distribution
-dist
+# Distribution and build output
+dist/
+build/
 
-# Testing
-coverage
+# Testing and profiling
+coverage/
 *.profdata
 *.profraw
 
-# Misc
+# SSL certificates and keys
 *.pem
 *.key
 *.cert
-
-# Added by cargo
-target
+*.crt
