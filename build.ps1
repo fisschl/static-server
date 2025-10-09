@@ -10,8 +10,8 @@ docker build -t $target .
 $containerId = docker create $target
 
 # 导出构建产物到目标目录
-New-Item -ItemType Directory -Force -Path "./target"
-docker cp "${containerId}:/root/static-server" "./target/static-server"
+New-Item -ItemType Directory -Force -Path "./dist"
+docker cp "${containerId}:/root/static-server" "./dist/static-server"
 
 # 删除临时容器
 docker rm $containerId

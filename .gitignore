@@ -33,6 +33,9 @@ ehthumbs.db
 .cache
 .temp
 
+# Distribution
+dist
+
 # Testing
 coverage
 *.profdata
