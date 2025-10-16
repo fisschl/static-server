@@ -56,7 +56,7 @@ pub async fn fetch_and_proxy_file(
     let presigned_url =
         match generate_presigned_url(s3_client.clone(), &get_bucket_name(), key).await {
             Ok(url) => url,
-            Err(e) => return Err((StatusCode::INTERNAL_SERVER_ERROR, e.to_string())),
+            Err(e) => return Err((StatusCode::BAD_GATEWAY, format!("S3 Error: {}", e))),
         };
 
     // 使用 reqwest 客户端转发请求
@@ -69,7 +69,7 @@ pub async fn fetch_and_proxy_file(
     // 发送请求并获取响应
     let response = match forwarded_req.send().await {
         Ok(resp) => resp,
-        Err(e) => return Err((StatusCode::INTERNAL_SERVER_ERROR, e.to_string())),
+        Err(e) => return Err((StatusCode::BAD_GATEWAY, format!("Proxy Error: {}", e))),
     };
 
     // 构建返回的响应
@@ -90,6 +90,9 @@ pub async fn fetch_and_proxy_file(
     // 流式传输响应体
     match resp_builder.body(Body::from_stream(response.bytes_stream())) {
         Ok(resp) => Ok(resp),
-        Err(e) => Err((StatusCode::INTERNAL_SERVER_ERROR, e.to_string())),
+        Err(e) => Err((
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Response Error: {}", e),
+        )),
     }
 }

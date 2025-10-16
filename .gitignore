@@ -1,5 +1,5 @@
 # Rust artifacts and build cache
-**/target/
+/target/
 *.rs.bk
 
 # Environment variables
@@ -8,36 +8,27 @@
 .env.*.local
 
 # Log files
-logs/
+/logs/
 *.log
 
 # Operating system generated files
 .DS_Store
 .DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
-Thumbs.db
 
 # Editor and IDE files
 .idea/
 .vscode/
-*.swp
-*.swo
-*~
 
-# Temporary and cache directories
-.cache/
-.temp/
+# Temporary files
 *.tmp
+*.temp
 
-# Distribution and build output
-dist/
-build/
+# Build output and distribution
+/dist/
+/build/
 
 # Testing and profiling
-coverage/
+/coverage/
 *.profdata
 *.profraw
 
@@ -46,3 +37,6 @@ coverage/
 *.key
 *.cert
 *.crt
+
+# Claude Code
+.claude
