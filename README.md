@@ -7,6 +7,7 @@
 - **S3 存储桶支持**: 从 S3 兼容存储桶提供静态文件服务
 - **SPA 路由支持**: 自动回退到 index.html 以支持单页应用路由
 - **智能缓存**: 基于文件扩展名的智能缓存控制
+- **MIME 类型检测**: 自动检测文件类型并设置正确的 Content-Type
 - **预签名 URL**: 使用 S3 预签名 URL 确保安全访问
 - **CORS 支持**: 完整的跨域资源共享支持
 - **请求转发**: 支持 Range 请求、条件请求等高级 HTTP 功能
@@ -19,6 +20,7 @@
 - **S3 客户端**: AWS SDK for Rust
 - **缓存**: cached 宏缓存库
 - **HTTP 客户端**: Reqwest
+- **MIME 检测**: mime_guess 库用于文件类型识别
 - **日志**: Tracing + Tracing Subscriber
 - **配置**: dotenvy 环境变量管理
 
@@ -84,6 +86,15 @@ docker build -t static-server .
 - **不缓存文件**: HTML、HTM 文件（避免 SPA 路由问题）
 - **内存缓存**: 路径查找结果缓存 60 秒，减少 S3 API 调用
 
+## MIME 类型检测
+
+服务器支持自动 MIME 类型检测：
+
+- **智能检测**: 当 S3 响应缺少 Content-Type 时，根据文件扩展名自动猜测
+- **广泛支持**: 支持数百种常见文件类型（CSS、JS、PNG、JSON 等）
+- **向后兼容**: 保留 S3 原有的 Content-Type，仅在缺失时进行补充
+- **浏览器优化**: 确保浏览器能正确处理和渲染各类静态资源
+
 ## SPA 支持
 
 服务器支持单页应用路由，当请求的文件不存在时：
@@ -118,15 +129,16 @@ docker build -t static-server .
 src/
 ├── main.rs              # 应用入口点
 ├── lib.rs               # 应用配置和路由
+├── handlers.rs          # handlers 模块声明
 ├── handlers/            # 请求处理器
 │   ├── constants.rs     # 常量定义
 │   ├── files.rs         # 文件处理逻辑
 │   ├── proxy.rs         # S3代理转发
 │   └── spa_key.rs       # SPA路由支持
+├── utils.rs             # utils 模块声明
 └── utils/               # 工具函数
-    ├── headers.rs       # HTTP头部工具
-    ├── s3.rs           # S3相关工具
-    └── mod.rs          # 模块声明
+    ├── headers.rs       # HTTP头部工具（包含MIME检测）
+    └── s3.rs            # S3相关工具
 ```
 
 ## 许可证
