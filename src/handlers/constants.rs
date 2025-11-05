@@ -32,14 +32,42 @@ pub const PRESERVE_HEADERS: &[header::HeaderName] = &[
 pub const CACHE_CONTROL_VALUE: &str = "public, max-age=2592000";
 
 /// 用于代理的请求头部列表
+///
+/// 这些头部应该从客户端请求转发到目标服务器：
+/// - 内容协商：ACCEPT_*
+/// - 身份验证：AUTHORIZATION, PROXY_AUTHORIZATION
+/// - 请求体信息：CONTENT_*
+/// - 客户端信息：USER_AGENT, REFERER
+/// - 条件请求：IF_*
+/// - 范围请求：RANGE, IF_RANGE
+/// - 其他：CACHE_CONTROL, PRAGMA, COOKIE
 pub const FORWARD_HEADERS: &[header::HeaderName] = &[
+    // 内容协商
     header::ACCEPT,
+    header::ACCEPT_CHARSET,
     header::ACCEPT_ENCODING,
     header::ACCEPT_LANGUAGE,
-    header::RANGE,
+    // 身份验证
+    header::AUTHORIZATION,
+    header::PROXY_AUTHORIZATION,
+    // 请求体相关
+    header::CONTENT_TYPE,
+    header::CONTENT_LENGTH,
+    header::CONTENT_ENCODING,
+    header::CONTENT_LANGUAGE,
+    // 客户端信息
+    header::USER_AGENT,
+    header::REFERER,
+    // 条件请求
     header::IF_MATCH,
     header::IF_NONE_MATCH,
     header::IF_MODIFIED_SINCE,
     header::IF_UNMODIFIED_SINCE,
-    header::USER_AGENT,
+    // 范围请求
+    header::RANGE,
+    header::IF_RANGE,
+    // 其他重要头部
+    header::CACHE_CONTROL,
+    header::PRAGMA,
+    header::COOKIE,
 ];

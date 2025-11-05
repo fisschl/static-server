@@ -9,8 +9,9 @@
 pub mod handlers;
 pub mod utils;
 
-use axum::routing::get;
+use axum::routing::{any, get};
 use http::Method;
+use reqwest::Client;
 use std::sync::Arc;
 use tower_http::cors::{AllowHeaders, CorsLayer};
 use tower_http::trace::TraceLayer;
@@ -36,9 +37,17 @@ pub async fn app() -> axum::Router {
     let s3_config = aws_config::load_from_env().await;
     let s3_client = Arc::new(aws_sdk_s3::Client::new(&s3_config));
 
+    // 初始化 HTTP 客户端用于代理
+    let http_client = Arc::new(Client::new());
+
     axum::Router::new()
+        .route(
+            "/compatible-mode/v1/{*path}",
+            any(handlers::handle_compatible_mode_proxy),
+        )
         .fallback(get(handlers::handle_files))
         .layer(TraceLayer::new_for_http())
         .layer(cors)
         .layer(axum::extract::Extension(s3_client))
+        .layer(axum::extract::Extension(http_client))
 }

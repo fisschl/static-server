@@ -8,6 +8,7 @@ use axum::{
     http::StatusCode,
     response::{IntoResponse, Redirect},
 };
+use reqwest::Client;
 use std::sync::Arc;
 
 /// 处理文件请求并为静态内容提供服务。
@@ -19,12 +20,14 @@ use std::sync::Arc;
 ///
 /// * `req` - HTTP 请求。
 /// * `Extension(s3_client)` - S3 客户端实例。
+/// * `Extension(http_client)` - HTTP 客户端实例。
 ///
 /// # 返回值
 ///
 /// 包含文件内容或错误状态的 HTTP 响应。
 pub async fn handle_files(
     Extension(s3_client): Extension<Arc<S3Client>>,
+    Extension(http_client): Extension<Arc<Client>>,
     req: Request,
 ) -> impl IntoResponse {
     let path = req
@@ -42,7 +45,14 @@ pub async fn handle_files(
     let s3_path = format!("{WWW_PREFIX}/{path}");
 
     // 尝试直接获取请求的文件
-    match fetch_and_proxy_file(s3_client.clone(), req.headers(), &s3_path).await {
+    match fetch_and_proxy_file(
+        s3_client.clone(),
+        http_client.clone(),
+        req.headers(),
+        &s3_path,
+    )
+    .await
+    {
         // 如果成功获取文件且不是 404，直接返回响应
         Ok(response) if response.status() != StatusCode::NOT_FOUND => {
             return response.into_response();
@@ -61,7 +71,7 @@ pub async fn handle_files(
     };
 
     // 使用 fetch_and_proxy_file 获取回退文件
-    match fetch_and_proxy_file(s3_client, req.headers(), &file_key).await {
+    match fetch_and_proxy_file(s3_client, http_client, req.headers(), &file_key).await {
         Ok(response) => response.into_response(),
         Err((status, msg)) => (status, msg).into_response(),
     }

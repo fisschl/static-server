@@ -38,6 +38,7 @@ fn should_cache(key: &str) -> bool {
 /// # 参数
 ///
 /// * `s3_client` - S3 客户端实例。
+/// * `http_client` - HTTP 客户端实例。
 /// * `headers` - 原始 HTTP 请求的头部。
 /// * `key` - 要获取的 S3 对象键。
 ///
@@ -50,6 +51,7 @@ fn should_cache(key: &str) -> bool {
 /// 当无法生成预签名 URL 或发送 HTTP 请求失败时返回错误。
 pub async fn fetch_and_proxy_file(
     s3_client: Arc<S3Client>,
+    http_client: Arc<Client>,
     headers: &http::HeaderMap,
     key: &str,
 ) -> Result<Response<Body>, (StatusCode, String)> {
@@ -60,12 +62,9 @@ pub async fn fetch_and_proxy_file(
             Err(e) => return Err((StatusCode::BAD_GATEWAY, format!("S3 Error: {}", e))),
         };
 
-    // 使用 reqwest 客户端转发请求
-    let client = Client::new();
-
-    // 构建转发请求并复制必要的头部
+    // 使用共享的 reqwest 客户端转发请求
     let forwarded_headers = clone_headers(headers, FORWARD_HEADERS);
-    let forwarded_req = client.get(&presigned_url).headers(forwarded_headers);
+    let forwarded_req = http_client.get(&presigned_url).headers(forwarded_headers);
 
     // 发送请求并获取响应
     let response = match forwarded_req.send().await {
