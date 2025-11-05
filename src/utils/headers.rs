@@ -1,4 +1,5 @@
 use http::HeaderMap;
+use mime_guess::MimeGuess;
 
 /// 从源头部映射克隆指定的头部到新的头部映射
 ///
@@ -37,4 +38,18 @@ pub fn clone_headers(source: &HeaderMap, allowed_headers: &[http::HeaderName]) -
     }
 
     result
+}
+
+/// 根据文件路径猜测 MIME 类型
+///
+/// # 参数
+///
+/// * `path` - 文件路径或文件名
+///
+/// # 返回值
+///
+/// 返回猜测的 MIME 类型字符串，如果无法猜测则返回 None
+pub fn guess_mime_type(path: &str) -> Option<String> {
+    let mime_guess = MimeGuess::from_path(path);
+    mime_guess.first().map(|mime| mime.to_string())
 }

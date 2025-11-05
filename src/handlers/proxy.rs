@@ -2,6 +2,7 @@ use crate::handlers::constants::{
     CACHE_CONTROL_VALUE, FORWARD_HEADERS, NO_CACHE_EXTS, PRESERVE_HEADERS,
 };
 use crate::utils::headers::clone_headers;
+use crate::utils::headers::guess_mime_type;
 use crate::utils::s3::{generate_presigned_url, get_bucket_name};
 use aws_sdk_s3::Client as S3Client;
 use axum::{
@@ -79,6 +80,13 @@ pub async fn fetch_and_proxy_file(
     for header_name in PRESERVE_HEADERS {
         if let Some(value) = response.headers().get(header_name) {
             resp_builder = resp_builder.header(header_name, value);
+        }
+    }
+
+    // 如果 S3 响应缺少 Content-Type，尝试猜测
+    if !response.headers().contains_key(header::CONTENT_TYPE) {
+        if let Some(guessed_content_type) = guess_mime_type(key) {
+            resp_builder = resp_builder.header(header::CONTENT_TYPE, guessed_content_type);
         }
     }
 
