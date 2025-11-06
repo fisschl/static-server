@@ -1,4 +1,4 @@
-use super::constants::{DEFAULT_REDIRECT_URL, WWW_PREFIX};
+use super::constants::WWW_PREFIX;
 use super::proxy::fetch_and_proxy_file;
 use super::spa_key;
 use crate::utils::s3::get_bucket_name;
@@ -6,7 +6,7 @@ use aws_sdk_s3::Client as S3Client;
 use axum::{
     extract::{Extension, Request},
     http::StatusCode,
-    response::{IntoResponse, Redirect},
+    response::IntoResponse,
 };
 use reqwest::Client;
 use std::sync::Arc;
@@ -36,10 +36,7 @@ pub async fn handle_files(
         .trim_start_matches('/')
         .trim_end_matches('/');
 
-    // 防御 pathname 为空的情况，若为空则重定向到默认 URL
-    if path.is_empty() {
-        return Redirect::to(DEFAULT_REDIRECT_URL).into_response();
-    }
+
 
     // 在 /www 前缀下查找文件
     let s3_path = format!("{WWW_PREFIX}/{path}");
