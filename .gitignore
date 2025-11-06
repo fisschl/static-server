@@ -38,5 +38,6 @@
 *.cert
 *.crt
 
-# Claude Code
+# Code Agent
 .claude
+.qoder
