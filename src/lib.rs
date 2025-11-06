@@ -9,7 +9,7 @@
 pub mod handlers;
 pub mod utils;
 
-use axum::routing::{any, get};
+use axum::routing::get;
 use http::Method;
 use reqwest::Client;
 use std::sync::Arc;
@@ -41,10 +41,6 @@ pub async fn app() -> axum::Router {
     let http_client = Arc::new(Client::new());
 
     axum::Router::new()
-        .route(
-            "/compatible-mode/v1/{*path}",
-            any(handlers::handle_compatible_mode_proxy),
-        )
         .fallback(get(handlers::handle_files))
         .layer(TraceLayer::new_for_http())
         .layer(cors)
