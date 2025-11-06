@@ -41,7 +41,7 @@ pub async fn app() -> axum::Router {
     let http_client = Arc::new(Client::new());
 
     axum::Router::new()
-        .fallback(get(handlers::handle_files))
+        .fallback(get(handlers::files::handle_files))
         .layer(TraceLayer::new_for_http())
         .layer(cors)
         .layer(axum::extract::Extension(s3_client))
