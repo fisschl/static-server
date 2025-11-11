@@ -6,7 +6,7 @@ use crate::utils::s3::get_bucket_name;
 use aws_sdk_s3::Client as S3Client;
 use axum::{
     body::Body,
-    extract::{Extension, Request},
+    extract::{Request, State},
     http::{Response, StatusCode, header},
     response::IntoResponse,
 };
@@ -243,18 +243,13 @@ pub async fn find_exists_key(
 ///
 /// # 参数
 ///
+/// * `State(state)` - 应用状态，包含 S3 和 HTTP 客户端。
 /// * `req` - HTTP 请求。
-/// * `Extension(s3_client)` - S3 客户端实例。
-/// * `Extension(http_client)` - HTTP 客户端实例。
 ///
 /// # 返回值
 ///
 /// 包含文件内容或错误状态的 HTTP 响应。
-pub async fn handle_files(
-    Extension(s3_client): Extension<Arc<S3Client>>,
-    Extension(http_client): Extension<Arc<Client>>,
-    req: Request,
-) -> impl IntoResponse {
+pub async fn handle_files(State(state): State<crate::AppState>, req: Request) -> impl IntoResponse {
     let path = req
         .uri()
         .path()
@@ -266,8 +261,8 @@ pub async fn handle_files(
 
     // 尝试直接获取请求的文件
     match fetch_and_proxy_file(
-        s3_client.clone(),
-        http_client.clone(),
+        state.s3_client.clone(),
+        state.http_client.clone(),
         req.headers(),
         &s3_path,
     )
@@ -285,12 +280,12 @@ pub async fn handle_files(
 
     // 如果响应是 404，则走 find_exists_key 逻辑（现在已经有缓存了）
     let bucket_name = get_bucket_name();
-    let Some(file_key) = find_exists_key(s3_client.clone(), &bucket_name, path).await else {
+    let Some(file_key) = find_exists_key(state.s3_client.clone(), &bucket_name, path).await else {
         return StatusCode::NOT_FOUND.into_response();
     };
 
     // 使用 fetch_and_proxy_file 获取回退文件
-    match fetch_and_proxy_file(s3_client, http_client, req.headers(), &file_key).await {
+    match fetch_and_proxy_file(state.s3_client, state.http_client, req.headers(), &file_key).await {
         Ok(response) => response.into_response(),
         Err((status, msg)) => (status, msg).into_response(),
     }

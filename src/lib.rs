@@ -9,12 +9,22 @@
 pub mod handlers;
 pub mod utils;
 
+use aws_sdk_s3::Client as S3Client;
 use axum::routing::get;
 use http::Method;
 use reqwest::Client;
 use std::sync::Arc;
 use tower_http::cors::{AllowHeaders, CorsLayer};
 use tower_http::trace::TraceLayer;
+
+/// 应用状态，包含所有共享资源
+#[derive(Clone)]
+pub struct AppState {
+    /// S3 客户端实例
+    pub s3_client: Arc<S3Client>,
+    /// HTTP 客户端实例（用于代理请求）
+    pub http_client: Arc<Client>,
+}
 
 /// 创建并配置Axum应用程序
 ///
@@ -40,10 +50,15 @@ pub async fn app() -> axum::Router {
     // 初始化 HTTP 客户端用于代理
     let http_client = Arc::new(Client::new());
 
+    // 创建应用状态
+    let state = AppState {
+        s3_client,
+        http_client,
+    };
+
     axum::Router::new()
         .fallback(get(handlers::files::handle_files))
+        .with_state(state)
         .layer(TraceLayer::new_for_http())
         .layer(cors)
-        .layer(axum::extract::Extension(s3_client))
-        .layer(axum::extract::Extension(http_client))
 }
