@@ -11,10 +11,9 @@ pub mod utils;
 
 use aws_sdk_s3::Client as S3Client;
 use axum::routing::get;
-use http::Method;
 use reqwest::Client;
 use std::sync::Arc;
-use tower_http::cors::{AllowHeaders, CorsLayer};
+use tower_http::cors::CorsLayer;
 use tower_http::trace::TraceLayer;
 
 /// 应用状态，包含所有共享资源
@@ -38,11 +37,6 @@ pub struct AppState {
 ///
 /// 返回配置好的Axum Router实例
 pub async fn app() -> axum::Router {
-    // 配置 CORS
-    let cors = CorsLayer::permissive()
-        .allow_methods([Method::GET, Method::HEAD, Method::OPTIONS])
-        .allow_headers(AllowHeaders::any());
-
     // 初始化 S3 客户端
     let s3_config = aws_config::load_from_env().await;
     let s3_client = Arc::new(aws_sdk_s3::Client::new(&s3_config));
@@ -60,5 +54,5 @@ pub async fn app() -> axum::Router {
         .fallback(get(handlers::files::handle_files))
         .with_state(state)
         .layer(TraceLayer::new_for_http())
-        .layer(cors)
+        .layer(CorsLayer::permissive())
 }
