@@ -27,12 +27,6 @@ pub struct AppState {
 
 /// 创建并配置Axum应用程序
 ///
-/// 此函数设置了一个完整的HTTP服务器，包括：
-/// - CORS配置，允许GET、HEAD和OPTIONS请求
-/// - S3客户端初始化和集成
-/// - 请求追踪中间件
-/// - 文件处理路由配置
-///
 /// # Returns
 ///
 /// 返回配置好的Axum Router实例
