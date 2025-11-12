@@ -23,6 +23,8 @@ pub struct AppState {
     pub s3_client: Arc<S3Client>,
     /// HTTP 客户端实例（用于代理请求）
     pub http_client: Arc<Client>,
+    /// S3 存储桶名称
+    pub bucket_name: String,
 }
 
 /// 创建并配置Axum应用程序
@@ -38,10 +40,16 @@ pub async fn app() -> axum::Router {
     // 初始化 HTTP 客户端用于代理
     let http_client = Arc::new(Client::new());
 
+    // 从环境变量读取 S3 存储桶名称
+    let bucket_name = std::env::var("AWS_BUCKET").expect(
+        "AWS_BUCKET environment variable must be set. Please set AWS_BUCKET=your-bucket-name",
+    );
+
     // 创建应用状态
     let state = AppState {
         s3_client,
         http_client,
+        bucket_name,
     };
 
     axum::Router::new()

@@ -2,7 +2,6 @@ use crate::utils::headers::filter_headers_blacklist;
 use crate::utils::headers::guess_mime_type;
 use crate::utils::path::get_extension_lowercase;
 use crate::utils::s3::generate_presigned_url;
-use crate::utils::s3::get_bucket_name;
 use aws_sdk_s3::Client as S3Client;
 use axum::{
     body::Body,
@@ -102,6 +101,7 @@ fn should_cache(key: &str) -> bool {
 ///
 /// * `s3_client` - S3 客户端实例。
 /// * `http_client` - HTTP 客户端实例。
+/// * `bucket_name` - S3 存储桶名称。
 /// * `headers` - 原始 HTTP 请求的头部。
 /// * `key` - 要获取的 S3 对象键。
 ///
@@ -115,15 +115,15 @@ fn should_cache(key: &str) -> bool {
 pub async fn fetch_and_proxy_file(
     s3_client: Arc<S3Client>,
     http_client: Arc<Client>,
+    bucket_name: &str,
     headers: &http::HeaderMap,
     key: &str,
 ) -> Result<Response<Body>, (StatusCode, String)> {
     // 生成预签名 URL
-    let presigned_url =
-        match generate_presigned_url(s3_client.clone(), &get_bucket_name(), key).await {
-            Ok(url) => url,
-            Err(e) => return Err((StatusCode::BAD_GATEWAY, format!("S3 Error: {}", e))),
-        };
+    let presigned_url = match generate_presigned_url(s3_client.clone(), bucket_name, key).await {
+        Ok(url) => url,
+        Err(e) => return Err((StatusCode::BAD_GATEWAY, format!("S3 Error: {}", e))),
+    };
 
     // 使用黑名单模式过滤并转发请求头部
     let forwarded_headers = filter_headers_blacklist(headers, FORWARD_BLOCKED_HEADERS);
@@ -254,6 +254,7 @@ pub async fn handle_files(State(state): State<crate::AppState>, req: Request) ->
     match fetch_and_proxy_file(
         state.s3_client.clone(),
         state.http_client.clone(),
+        &state.bucket_name,
         req.headers(),
         &s3_path,
     )
@@ -270,13 +271,21 @@ pub async fn handle_files(State(state): State<crate::AppState>, req: Request) ->
     }
 
     // 如果响应是 404，则走 find_exists_key 逻辑（现在已经有缓存了）
-    let bucket_name = get_bucket_name();
-    let Some(file_key) = find_exists_key(state.s3_client.clone(), &bucket_name, path).await else {
+    let Some(file_key) = find_exists_key(state.s3_client.clone(), &state.bucket_name, path).await
+    else {
         return StatusCode::NOT_FOUND.into_response();
     };
 
     // 使用 fetch_and_proxy_file 获取回退文件
-    match fetch_and_proxy_file(state.s3_client, state.http_client, req.headers(), &file_key).await {
+    match fetch_and_proxy_file(
+        state.s3_client,
+        state.http_client,
+        &state.bucket_name,
+        req.headers(),
+        &file_key,
+    )
+    .await
+    {
         Ok(response) => response.into_response(),
         Err((status, msg)) => (status, msg).into_response(),
     }
