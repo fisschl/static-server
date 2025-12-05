@@ -247,6 +247,11 @@ pub async fn handle_files(State(state): State<crate::AppState>, req: Request) ->
         .trim_start_matches('/')
         .trim_end_matches('/');
 
+    // 如果 path 为空或空白，直接返回 404
+    if path.is_empty() || path.trim().is_empty() {
+        return StatusCode::NOT_FOUND.into_response();
+    }
+
     // 在 /www 前缀下查找文件
     let s3_path = format!("{WWW_PREFIX}/{path}");
 
