@@ -1,6 +1,7 @@
 # Rust artifacts and build cache
 /target/
 *.rs.bk
+Cargo.lock
 
 # Environment variables
 .env
