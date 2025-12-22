@@ -26,6 +26,7 @@
 # Build output and distribution
 /dist/
 /build/
+deploy.json
 
 # Testing and profiling
 /coverage/
