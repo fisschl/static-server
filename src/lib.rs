@@ -10,7 +10,7 @@ pub mod handlers;
 pub mod utils;
 
 use aws_sdk_s3::Client as S3Client;
-use axum::routing::get;
+use axum::routing::{get, post};
 use reqwest::Client;
 use std::sync::Arc;
 use tower_http::cors::CorsLayer;
@@ -25,6 +25,8 @@ pub struct AppState {
     pub http_client: Arc<Client>,
     /// S3 存储桶名称
     pub bucket_name: String,
+    /// DeepSeek API 密钥
+    pub deepseek_api_key: String,
 }
 
 /// 创建并配置Axum应用程序
@@ -45,14 +47,28 @@ pub async fn app() -> axum::Router {
         "AWS_BUCKET environment variable must be set. Please set AWS_BUCKET=your-bucket-name",
     );
 
+    // 从环境变量读取 DeepSeek API 密钥
+    let deepseek_api_key = std::env::var("DEEPSEEK_API_KEY")
+        .expect("DEEPSEEK_API_KEY environment variable must be set");
+
     // 创建应用状态
     let state = AppState {
         s3_client,
         http_client,
         bucket_name,
+        deepseek_api_key,
     };
 
+    let free_model_api_routes = axum::Router::new()
+        .route(
+            "/chat/completions",
+            post(handlers::chat_completions::handle_chat_completions),
+        )
+        .route("/models", get(handlers::models::handle_models))
+        .route("/user/balance", get(handlers::balance::handle_balance));
+
     axum::Router::new()
+        .nest("/free-model", free_model_api_routes)
         .fallback(get(handlers::files::handle_files))
         .with_state(state)
         .layer(TraceLayer::new_for_http())

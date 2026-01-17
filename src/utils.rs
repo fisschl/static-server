@@ -7,4 +7,5 @@
 
 pub mod headers;
 pub mod path;
+pub mod proxy;
 pub mod s3;

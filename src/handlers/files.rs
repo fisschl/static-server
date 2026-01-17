@@ -1,6 +1,7 @@
 use crate::utils::headers::filter_headers_blacklist;
 use crate::utils::headers::guess_mime_type;
 use crate::utils::path::get_extension_lowercase;
+use crate::utils::proxy::{REQUEST_HEADERS_BLOCKLIST, RESPONSE_HEADERS_BLOCKLIST};
 use crate::utils::s3::generate_presigned_url;
 use aws_sdk_s3::Client as S3Client;
 use axum::{
@@ -23,58 +24,9 @@ pub const INDEX_FILE: &str = "index.html";
 /// 不应缓存的文件扩展名。
 pub const NO_CACHE_EXTS: &[&str] = &["html", "htm"];
 
-/// 需要移除的响应头部黑名单
-///
-/// 采用黑名单模式，移除以下头部，保留所有其他头部：
-/// - 跨域相关头部（ACCESS_CONTROL_*）
-/// - 缓存控制相关头部（CACHE_CONTROL, EXPIRES, PRAGMA, AGE）
-pub const BLOCKED_HEADERS: &[header::HeaderName] = &[
-    // 跨域相关头部
-    header::ACCESS_CONTROL_ALLOW_ORIGIN,
-    header::ACCESS_CONTROL_ALLOW_METHODS,
-    header::ACCESS_CONTROL_ALLOW_HEADERS,
-    header::ACCESS_CONTROL_ALLOW_CREDENTIALS,
-    header::ACCESS_CONTROL_EXPOSE_HEADERS,
-    header::ACCESS_CONTROL_MAX_AGE,
-    // 缓存控制相关头部
-    header::CACHE_CONTROL,
-    header::EXPIRES,
-    header::PRAGMA,
-    header::AGE,
-];
-
 /// 缓存控制头部值（30 天缓存，适用于 CSS、JS、图片等静态资源）
 /// max-age=2592000 表示 2592000 秒 = 30 天
 pub const CACHE_CONTROL_VALUE: &str = "public, max-age=2592000";
-
-/// 请求转发时需要移除的头部黑名单
-///
-/// 采用黑名单模式，移除以下头部，保留所有其他头部：
-/// - 连接管理相关：CONNECTION, KEEP_ALIVE, TRANSFER_ENCODING, UPGRADE
-/// - 代理相关：PROXY_AUTHENTICATE, PROXY_AUTHORIZATION, PROXY_CONNECTION
-/// - 主机相关：HOST（由 reqwest 自动设置）
-/// - 认证相关：AUTHORIZATION, COOKIE（S3 预签名 URL 已包含认证）
-/// - 源信息：ORIGIN, REFERER（避免泄露内部信息）
-/// - 缓存控制：CACHE_CONTROL, PRAGMA（由程序控制）
-pub const FORWARD_BLOCKED_HEADERS: &[header::HeaderName] = &[
-    // 连接管理相关
-    header::CONNECTION,
-    header::TRANSFER_ENCODING,
-    header::UPGRADE,
-    // 代理相关
-    header::PROXY_AUTHORIZATION,
-    // 主机相关
-    header::HOST,
-    // 认证相关
-    header::AUTHORIZATION,
-    header::COOKIE,
-    // 源信息
-    header::ORIGIN,
-    header::REFERER,
-    // 缓存控制
-    header::CACHE_CONTROL,
-    header::PRAGMA,
-];
 
 /// 确定文件键是否应该被缓存。
 ///
@@ -125,8 +77,8 @@ pub async fn fetch_and_proxy_file(
         Err(e) => return Err((StatusCode::BAD_GATEWAY, format!("S3 Error: {}", e))),
     };
 
-    // 使用黑名单模式过滤并转发请求头部
-    let forwarded_headers = filter_headers_blacklist(headers, FORWARD_BLOCKED_HEADERS);
+    // 使用统一的黑名单模式过滤并转发请求头部
+    let forwarded_headers = filter_headers_blacklist(headers, REQUEST_HEADERS_BLOCKLIST);
     let forwarded_req = http_client.get(&presigned_url).headers(forwarded_headers);
 
     // 发送请求并获取响应
@@ -138,8 +90,8 @@ pub async fn fetch_and_proxy_file(
     // 构建返回的响应
     let mut resp_builder = Response::builder().status(response.status());
 
-    // 使用黑名单模式复制响应头部（移除跨域相关头部，保留其他所有头部）
-    let filtered_headers = filter_headers_blacklist(response.headers(), BLOCKED_HEADERS);
+    // 使用统一的黑名单模式复制响应头部（移除跨域相关头部，保留其他所有头部）
+    let filtered_headers = filter_headers_blacklist(response.headers(), RESPONSE_HEADERS_BLOCKLIST);
     for (name, value) in filtered_headers.iter() {
         resp_builder = resp_builder.header(name, value);
     }
