@@ -24,43 +24,10 @@ use crate::utils::proxy::proxy_request;
 /// * `headers` - 客户端传入的请求头，会被过滤后转发
 /// * `body` - 请求体，包含对话消息、模型选择等参数（JSON 格式）
 ///
-/// # 请求体示例
-///
-/// ```json
-/// {
-///   "model": "deepseek-chat",
-///   "messages": [
-///     {
-///       "role": "user",
-///       "content": "你好"
-///     }
-///   ],
-///   "stream": false
-/// }
-/// ```
-///
 /// # 返回值
 ///
 /// * `Ok(Response)` - DeepSeek API 返回的聊天补全结果（JSON 格式或流式文本）
 /// * `Err((StatusCode, String))` - 代理失败时的错误信息
-///
-/// # 响应示例（非流式）
-///
-/// ```json
-/// {
-///   "id": "chat-123",
-///   "object": "chat.completion",
-///   "created": 1677652288,
-///   "model": "deepseek-chat",
-///   "choices": [{
-///     "message": {
-///       "role": "assistant",
-///       "content": "你好！有什么可以帮助你的吗？"
-///     },
-///     "finish_reason": "stop"
-///   }]
-/// }
-/// ```
 ///
 /// # 流式支持
 ///

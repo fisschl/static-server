@@ -5,7 +5,7 @@
 ## 功能特点
 
 - **S3 存储桶支持**: 从 S3 兼容存储桶提供静态文件服务
-- **API 代理**: DeepSeek API 代理（聊天补全、模型列表、余额查询）
+- **API 代理**: DeepSeek API 代理（聊天补全）
 - **统一头部过滤**: 统一的请求头/响应头黑名单管理，支持多场景代理
 - **灵活认证**: 应用层认证控制，支持客户端 token 和服务器 token
 - **SPA 路由支持**: 自动回退到 index.html 以支持单页应用路由
@@ -27,6 +27,10 @@ GET /{path}
 
 从 S3 存储桶提供静态文件服务，支持 SPA 路由回退。
 
+**文件路径规则**：
+- 静态文件存储在 S3 存储桶的 `www/` 前缀下
+- 例如请求 `/app.js` 会查找 S3 中的 `www/app.js`
+
 ### DeepSeek API 代理
 
 #### 聊天补全
@@ -39,20 +43,6 @@ POST /free-model/chat/completions
 **认证**：
 - 优先使用客户端提供的 `Authorization` 头
 - 如未提供，自动使用服务器配置的 `DEEPSEEK_API_KEY`
-
-#### 模型列表
-```
-GET /free-model/models
-```
-
-查询可用的 DeepSeek 模型列表。
-
-#### 用户余额
-```
-GET /free-model/user/balance
-```
-
-查询 API 账户余额信息。
 
 ## 技术栈
 
@@ -80,6 +70,16 @@ AWS_BUCKET=your_bucket_name  # S3存储桶名称
 
 # DeepSeek API 配置（API 代理功能）
 DEEPSEEK_API_KEY=your_deepseek_api_key
+```
+
+## 服务配置
+
+### 端口配置
+
+默认服务运行在 `0.0.0.0:3000`，如需修改端口，请编辑 `src/main.rs`：
+
+```rust
+let addr: SocketAddr = "0.0.0.0:3000".parse()?;  // 修改此处端口号
 ```
 
 ## 本地开发
@@ -127,7 +127,8 @@ docker build -t static-server .
 
 - **缓存文件**: CSS、JS、图片、字体等静态资源（30 天缓存）
 - **不缓存文件**: HTML、HTM 文件（避免 SPA 路由问题）
-- **内存缓存**: 路径查找结果缓存 60 秒，减少 S3 API 调用
+- **内存缓存**: 路径查找结果缓存 2 分钟，减少 S3 API 调用
+- **预签名 URL 缓存**: 预签名 URL 缓存 30 分钟（URL 本身有效期为 1 小时）
 
 ## 请求头过滤
 
@@ -202,9 +203,7 @@ src/
 ├── lib.rs               # 应用配置和路由
 ├── handlers.rs          # handlers 模块声明
 ├── handlers/            # 请求处理器
-│   ├── balance.rs       # DeepSeek 余额查询
 │   ├── chat_completions.rs  # DeepSeek 聊天补全
-│   ├── models.rs        # DeepSeek 模型列表
 │   └── files.rs         # S3 文件处理逻辑
 ├── utils.rs             # utils 模块声明
 └── utils/               # 工具函数
