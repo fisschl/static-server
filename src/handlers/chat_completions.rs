@@ -1,6 +1,6 @@
 use axum::{
     extract::{RawQuery, Request, State},
-    http::{header, HeaderMap, Method, StatusCode},
+    http::{HeaderMap, Method, StatusCode, header},
     response::Response,
 };
 
@@ -76,10 +76,11 @@ pub async fn handle_chat_completions(
     // 应用层处理认证：如果客户端未提供 AUTHORIZATION，则添加服务器的 Bearer token
     let mut request_headers = headers;
     if !request_headers.contains_key(header::AUTHORIZATION) {
-        let auth_value = axum::http::HeaderValue::from_str(&format!("Bearer {}", state.deepseek_api_key))
-            .map_err(|e: axum::http::header::InvalidHeaderValue| {
-                (StatusCode::INTERNAL_SERVER_ERROR, e.to_string())
-            })?;
+        let auth_value =
+            axum::http::HeaderValue::from_str(&format!("Bearer {}", state.deepseek_api_key))
+                .map_err(|e: axum::http::header::InvalidHeaderValue| {
+                    (StatusCode::INTERNAL_SERVER_ERROR, e.to_string())
+                })?;
         request_headers.insert(header::AUTHORIZATION, auth_value);
     }
 

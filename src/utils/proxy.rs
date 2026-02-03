@@ -2,8 +2,8 @@ use crate::utils::headers::filter_headers_blacklist;
 use axum::http::header::{
     ACCESS_CONTROL_ALLOW_CREDENTIALS, ACCESS_CONTROL_ALLOW_HEADERS, ACCESS_CONTROL_ALLOW_METHODS,
     ACCESS_CONTROL_ALLOW_ORIGIN, ACCESS_CONTROL_EXPOSE_HEADERS, ACCESS_CONTROL_MAX_AGE, AGE,
-    CACHE_CONTROL, CONNECTION, COOKIE, EXPIRES, HOST, ORIGIN, PRAGMA, PROXY_AUTHORIZATION,
-    REFERER, SET_COOKIE, TE, TRAILER, TRANSFER_ENCODING, UPGRADE, VARY,
+    CACHE_CONTROL, CONNECTION, COOKIE, EXPIRES, HOST, ORIGIN, PRAGMA, PROXY_AUTHORIZATION, REFERER,
+    SET_COOKIE, TE, TRAILER, TRANSFER_ENCODING, UPGRADE, VARY,
 };
 use axum::{
     body::Body,
@@ -21,16 +21,16 @@ use axum::{
 /// - PROXY_AUTHORIZATION: 代理认证，不应转发
 /// - COOKIE: Cookie，由代理服务器管理
 pub const REQUEST_HEADERS_BLOCKLIST: &[HeaderName] = &[
-    HOST,                  // 主机名，由代理服务器设置为实际目标地址
-    CONNECTION,            // 连接控制，由代理服务器管理
-    TE,                    // 传输编码，由代理服务器处理
-    TRAILER,               // 尾部字段，由代理服务器处理
-    TRANSFER_ENCODING,      // 传输编码，由代理服务器处理
-    UPGRADE,               // 协议升级，代理服务器不支持
-    ORIGIN,                // 来源，可能包含敏感信息
-    REFERER,               // 来源页面，可能包含敏感信息
-    PROXY_AUTHORIZATION,   // 代理认证，不应转发
-    COOKIE,                // Cookie，由代理服务器管理
+    HOST,                // 主机名，由代理服务器设置为实际目标地址
+    CONNECTION,          // 连接控制，由代理服务器管理
+    TE,                  // 传输编码，由代理服务器处理
+    TRAILER,             // 尾部字段，由代理服务器处理
+    TRANSFER_ENCODING,   // 传输编码，由代理服务器处理
+    UPGRADE,             // 协议升级，代理服务器不支持
+    ORIGIN,              // 来源，可能包含敏感信息
+    REFERER,             // 来源页面，可能包含敏感信息
+    PROXY_AUTHORIZATION, // 代理认证，不应转发
+    COOKIE,              // Cookie，由代理服务器管理
 ];
 
 /// 响应头黑名单（需要在代理转发时移除的头）
@@ -155,7 +155,8 @@ pub async fn proxy_request(
 
     // 6. 获取响应状态码和过滤响应头
     let status = response.status();
-    let filtered_response_headers = filter_headers_blacklist(response.headers(), RESPONSE_HEADERS_BLOCKLIST);
+    let filtered_response_headers =
+        filter_headers_blacklist(response.headers(), RESPONSE_HEADERS_BLOCKLIST);
 
     // 7. 构建响应并应用过滤后的响应头
     let mut builder = Response::builder().status(status);

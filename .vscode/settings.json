@@ -1,8 +1,0 @@
-{
-  "editor.formatOnSave": true,
-  "files.autoSave": "onFocusChange",
-  "search.exclude": {
-    "target/": true,
-    "Cargo.lock": true
-  }
-}

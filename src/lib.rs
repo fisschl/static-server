@@ -59,13 +59,10 @@ pub async fn app() -> axum::Router {
         deepseek_api_key,
     };
 
-    let free_model_api_routes = axum::Router::new()
-        .route(
-            "/chat/completions",
-            post(handlers::chat_completions::handle_chat_completions),
-        )
-        .route("/models", get(handlers::models::handle_models))
-        .route("/user/balance", get(handlers::balance::handle_balance));
+    let free_model_api_routes = axum::Router::new().route(
+        "/chat/completions",
+        post(handlers::chat_completions::handle_chat_completions),
+    );
 
     axum::Router::new()
         .nest("/free-model", free_model_api_routes)
