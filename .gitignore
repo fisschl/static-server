@@ -1,44 +1,24 @@
-# Rust artifacts and build cache
 /target/
 *.rs.bk
 Cargo.lock
-
-# Environment variables
 .env
 .env.*
-.env.*.local
-
-# Log files
 /logs/
 *.log
-
-# Operating system generated files
 .DS_Store
 .DS_Store?
-
-# Editor and IDE files
 .idea/
-.vscode/
-
-# Temporary files
 *.tmp
 *.temp
-
-# Build output and distribution
 /dist/
 /build/
-deploy.json
-
-# Testing and profiling
 /coverage/
 *.profdata
 *.profraw
-
-# SSL certificates and keys
 *.pem
 *.key
 *.cert
 *.crt
-
-# Code Agent
 .claude
+.qoder
+.agents
