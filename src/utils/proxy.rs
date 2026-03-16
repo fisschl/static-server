@@ -67,7 +67,7 @@ pub const RESPONSE_HEADERS_BLOCKLIST: &[HeaderName] = &[
 /// # 参数
 ///
 /// * `client` - reqwest HTTP 客户端引用，用于发送 HTTP 请求
-/// * `target_url` - 目标 API 的完整 URL（如 "https://api.deepseek.com/models"）
+/// * `target_url` - 目标 API 的完整 URL（如 "https://api.example.com/endpoint"）
 /// * `method` - HTTP 请求方法（GET, POST, PUT, DELETE 等）
 /// * `headers` - 客户端传入的原始请求头，会被过滤后转发（应用层应提前处理认证）
 /// * `query` - 可选的查询参数字符串（如 "model=gpt-4"），会附加到目标 URL
@@ -103,7 +103,7 @@ pub const RESPONSE_HEADERS_BLOCKLIST: &[HeaderName] = &[
 /// // 简单 GET 请求代理
 /// let response = proxy_request(
 ///     &state.http_client,
-///     "https://api.deepseek.com/models",
+///     "https://api.example.com/data",
 ///     Method::GET,
 ///     headers,
 ///     None,  // 无查询参数
@@ -114,11 +114,11 @@ pub const RESPONSE_HEADERS_BLOCKLIST: &[HeaderName] = &[
 /// let body = reqwest::Body::from(json_str);
 /// let response = proxy_request(
 ///     &state.http_client,
-///     "https://api.deepseek.com/chat/completions",
+///     "https://api.example.com/create",
 ///     Method::POST,
 ///     headers,
-///     Some("stream=true".to_string()),  // 查询参数
-///     Some(body),                         // JSON 请求体
+///     Some("format=json".to_string()),  // 查询参数
+///     Some(body),                       // JSON 请求体
 /// ).await?;
 /// ```
 pub async fn proxy_request(

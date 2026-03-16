@@ -1,12 +1,11 @@
 # static-server
 
-一个使用 Rust 和 Axum 构建的高性能静态文件服务器和 API 代理服务，能够从 S3 兼容存储桶提供文件服务，同时支持 DeepSeek API 代理，具备 SPA（单页应用）路由、智能缓存和统一请求头过滤等高级功能。
+一个使用 Rust 和 Axum 构建的高性能静态文件服务器，能够从 S3 兼容存储桶提供文件服务，具备 SPA（单页应用）路由、智能缓存和统一请求头过滤等高级功能。
 
 ## 功能特点
 
 - **S3 存储桶支持**: 从 S3 兼容存储桶提供静态文件服务
-- **API 代理**: DeepSeek API 代理（聊天补全）
-- **统一头部过滤**: 统一的请求头/响应头黑名单管理，支持多场景代理
+- **统一头部过滤**: 统一的请求头/响应头黑名单管理
 - **灵活认证**: 应用层认证控制，支持客户端 token 和服务器 token
 - **SPA 路由支持**: 自动回退到 index.html 以支持单页应用路由
 - **智能缓存**: 基于文件扩展名的智能缓存控制
@@ -31,19 +30,6 @@ GET /{path}
 - 静态文件存储在 S3 存储桶的 `www/` 前缀下
 - 例如请求 `/app.js` 会查找 S3 中的 `www/app.js`
 
-### DeepSeek API 代理
-
-#### 聊天补全
-```
-POST /free-model/chat/completions
-```
-
-代理 DeepSeek 聊天补全 API，支持流式和非流式响应。
-
-**认证**：
-- 优先使用客户端提供的 `Authorization` 头
-- 如未提供，自动使用服务器配置的 `DEEPSEEK_API_KEY`
-
 ## 技术栈
 
 - **框架**: Axum (基于 Tokio 的异步 Web 框架)
@@ -67,9 +53,6 @@ AWS_ENDPOINT_URL=your_s3_endpoint  # 例如：https://oss-cn-hangzhou.aliyuncs.c
 
 # 必需配置
 AWS_BUCKET=your_bucket_name  # S3存储桶名称
-
-# DeepSeek API 配置（API 代理功能）
-DEEPSEEK_API_KEY=your_deepseek_api_key
 ```
 
 ## 服务配置
@@ -154,7 +137,6 @@ docker build -t static-server .
 
 ### 认证策略
 
-- **DeepSeek API**: 优先使用客户端的 `Authorization` 头，未提供则使用服务器 `DEEPSEEK_API_KEY`
 - **S3 文件**: 使用预签名 URL，无需额外认证
 
 ## MIME 类型检测
@@ -203,7 +185,6 @@ src/
 ├── lib.rs               # 应用配置和路由
 ├── handlers.rs          # handlers 模块声明
 ├── handlers/            # 请求处理器
-│   ├── chat_completions.rs  # DeepSeek 聊天补全
 │   └── files.rs         # S3 文件处理逻辑
 ├── utils.rs             # utils 模块声明
 └── utils/               # 工具函数
