@@ -1,5 +1,5 @@
-use anyhow::Result;
-use aws_sdk_s3::{Client, presigning::PresigningConfig};
+use crate::error::AppError;
+use aws_sdk_s3::Client;
 use cached::proc_macro::cached;
 use std::sync::Arc;
 use std::time::Duration;
@@ -30,9 +30,11 @@ pub async fn generate_presigned_url(
     s3_client: Arc<Client>,
     bucket_name: &str,
     object: &str,
-) -> Result<String> {
+) -> Result<String, AppError> {
     // 创建预签名配置，设置 URL 1 小时后过期
-    let presigning_config = PresigningConfig::expires_in(Duration::from_secs(3600))?;
+    let presigning_config =
+        aws_sdk_s3::presigning::PresigningConfig::expires_in(Duration::from_secs(3600))
+            .map_err(|e| AppError::S3(e.to_string()))?;
 
     // 生成预签名 URL
     let presigned_request = s3_client
@@ -40,7 +42,8 @@ pub async fn generate_presigned_url(
         .bucket(bucket_name)
         .key(object)
         .presigned(presigning_config)
-        .await?;
+        .await
+        .map_err(|e| AppError::S3(e.to_string()))?;
 
     Ok(presigned_request.uri().to_string())
 }

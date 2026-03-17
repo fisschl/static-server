@@ -6,6 +6,7 @@
 //! - 提供文件缓存和代理功能
 //! - 支持CORS跨域请求
 
+pub mod error;
 pub mod handlers;
 pub mod utils;
 

@@ -1,3 +1,4 @@
+use crate::error::AppError;
 use crate::utils::headers::filter_headers_blacklist;
 use crate::utils::headers::guess_mime_type;
 use crate::utils::path::get_extension_lowercase;
@@ -13,7 +14,6 @@ use axum::{
 use cached::proc_macro::cached;
 use reqwest::Client;
 use std::sync::Arc;
-use std::time::Duration;
 
 /// S3 存储桶中的 www 前缀
 pub const WWW_PREFIX: &str = "www";
@@ -70,22 +70,16 @@ pub async fn fetch_and_proxy_file(
     bucket_name: &str,
     headers: &http::HeaderMap,
     key: &str,
-) -> Result<Response<Body>, (StatusCode, String)> {
+) -> Result<Response<Body>, AppError> {
     // 生成预签名 URL
-    let presigned_url = match generate_presigned_url(s3_client.clone(), bucket_name, key).await {
-        Ok(url) => url,
-        Err(e) => return Err((StatusCode::BAD_GATEWAY, format!("S3 Error: {}", e))),
-    };
+    let presigned_url = generate_presigned_url(s3_client.clone(), bucket_name, key).await?;
 
     // 使用统一的黑名单模式过滤并转发请求头部
     let forwarded_headers = filter_headers_blacklist(headers, REQUEST_HEADERS_BLOCKLIST);
     let forwarded_req = http_client.get(&presigned_url).headers(forwarded_headers);
 
     // 发送请求并获取响应
-    let response = match forwarded_req.send().await {
-        Ok(resp) => resp,
-        Err(e) => return Err((StatusCode::BAD_GATEWAY, format!("Proxy Error: {}", e))),
-    };
+    let response = forwarded_req.send().await?;
 
     // 构建返回的响应
     let mut resp_builder = Response::builder().status(response.status());
@@ -109,13 +103,7 @@ pub async fn fetch_and_proxy_file(
     }
 
     // 流式传输响应体
-    match resp_builder.body(Body::from_stream(response.bytes_stream())) {
-        Ok(resp) => Ok(resp),
-        Err(e) => Err((
-            StatusCode::INTERNAL_SERVER_ERROR,
-            format!("Response Error: {}", e),
-        )),
-    }
+    Ok(resp_builder.body(Body::from_stream(response.bytes_stream()))?)
 }
 
 /// 检查 S3 存储桶中是否存在指定键。
@@ -192,49 +180,46 @@ pub async fn find_exists_key(
 /// # 返回值
 ///
 /// 包含文件内容或错误状态的 HTTP 响应。
-pub async fn handle_files(State(state): State<crate::AppState>, req: Request) -> impl IntoResponse {
+pub async fn handle_files(
+    State(state): State<crate::AppState>,
+    req: Request,
+) -> Result<impl IntoResponse, AppError> {
     let path = req
         .uri()
         .path()
         .trim_start_matches('/')
         .trim_end_matches('/');
 
-    // 如果 path 为空或空白，直接返回 404
+    // 如果 path 为空或空白，返回 404 错误
     if path.is_empty() || path.trim().is_empty() {
-        return StatusCode::NOT_FOUND.into_response();
+        return Err(AppError::NotFound("empty path".to_string()));
     }
 
     // 在 /www 前缀下查找文件
     let s3_path = format!("{WWW_PREFIX}/{path}");
 
     // 尝试直接获取请求的文件
-    match fetch_and_proxy_file(
+    let response = fetch_and_proxy_file(
         state.s3_client.clone(),
         state.http_client.clone(),
         &state.bucket_name,
         req.headers(),
         &s3_path,
     )
-    .await
-    {
-        // 如果成功获取文件且不是 404，直接返回响应
-        Ok(response) if response.status() != StatusCode::NOT_FOUND => {
-            return response.into_response();
-        }
-        // 如果是 404，继续下面的回退逻辑
-        Ok(_) => {}
-        // 如果出现错误，直接返回错误响应
-        Err((status, msg)) => return (status, msg).into_response(),
+    .await?;
+
+    // 如果成功获取文件且不是 404，直接返回响应
+    if response.status() != StatusCode::NOT_FOUND {
+        return Ok(response);
     }
 
-    // 如果响应是 404，则走 find_exists_key 逻辑（现在已经有缓存了）
-    let Some(file_key) = find_exists_key(state.s3_client.clone(), &state.bucket_name, path).await
-    else {
-        return StatusCode::NOT_FOUND.into_response();
-    };
+    // 404 回退逻辑：查找索引文件
+    let file_key = find_exists_key(state.s3_client.clone(), &state.bucket_name, path)
+        .await
+        .ok_or_else(|| AppError::NotFound(path.to_string()))?;
 
     // 使用 fetch_and_proxy_file 获取回退文件
-    match fetch_and_proxy_file(
+    fetch_and_proxy_file(
         state.s3_client,
         state.http_client,
         &state.bucket_name,
@@ -242,8 +227,4 @@ pub async fn handle_files(State(state): State<crate::AppState>, req: Request) ->
         &file_key,
     )
     .await
-    {
-        Ok(response) => response.into_response(),
-        Err((status, msg)) => (status, msg).into_response(),
-    }
 }
