@@ -4,13 +4,12 @@ use anyhow::{bail, Result};
 use std::io::{self, Write};
 use std::process::{Command, Stdio};
 
-const DIST_DIR: &str = "./dist";
 const IMAGE_NAME: &str = "static-server";
 const REMOTE_PATH: &str = "tos:muelsyse/static-server/static-server";
 
 fn main() -> Result<()> {
-    // 创建 dist 目录
-    std::fs::create_dir_all(DIST_DIR)?;
+    // 确保 target/release 目录存在
+    std::fs::create_dir_all("./target/release")?;
 
     println!("📦 开始构建...");
     io::stdout().flush()?;
@@ -40,7 +39,7 @@ fn main() -> Result<()> {
         .args([
             "cp",
             &format!("{}:/root/static-server", container),
-            &format!("{}/static-server", DIST_DIR),
+            "./target/release/static-server",
         ])
         .stdout(Stdio::inherit())
         .stderr(Stdio::inherit())
@@ -57,7 +56,7 @@ fn main() -> Result<()> {
         bail!("复制构建产物失败");
     }
 
-    println!("✅ 构建完成: {}/static-server", DIST_DIR);
+    println!("✅ 构建完成: target/release/static-server");
     io::stdout().flush()?;
 
     println!("☁️  开始上传...");
@@ -67,7 +66,7 @@ fn main() -> Result<()> {
     let status = Command::new("rclone")
         .args([
             "copyto",
-            &format!("{}/static-server", DIST_DIR),
+            "./target/release/static-server",
             REMOTE_PATH,
         ])
         .stdout(Stdio::inherit())
@@ -78,6 +77,6 @@ fn main() -> Result<()> {
         bail!("rclone 上传失败");
     }
 
-    println!("✅ 上传完成: {} -> {}", DIST_DIR, REMOTE_PATH);
+    println!("✅ 上传完成: target/release -> {}", REMOTE_PATH);
     Ok(())
 }
