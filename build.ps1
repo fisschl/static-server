@@ -13,6 +13,9 @@ New-Item -ItemType Directory -Force -Path $DistDir | Out-Null
 
 # 构建 Docker 镜像
 docker build -t $ImageName .
+if ($LASTEXITCODE -ne 0) {
+    throw "Docker 构建失败，退出码: $LASTEXITCODE"
+}
 
 # 创建临时容器并提取构建产物
 $container = docker create $ImageName
@@ -24,5 +27,8 @@ try {
 
 # 上传到远程存储
 rclone copyto "$DistDir/static-server" $RemotePath
+if ($LASTEXITCODE -ne 0) {
+    throw "rclone 上传失败，退出码: $LASTEXITCODE"
+}
 
 Write-Host "构建并上传完成: $DistDir/static-server -> $RemotePath"
