@@ -1,3 +1,4 @@
+use crate::error::AppError;
 use crate::utils::headers::filter_headers_blacklist;
 use axum::http::header::{
     ACCESS_CONTROL_ALLOW_CREDENTIALS, ACCESS_CONTROL_ALLOW_HEADERS, ACCESS_CONTROL_ALLOW_METHODS,
@@ -7,7 +8,7 @@ use axum::http::header::{
 };
 use axum::{
     body::Body,
-    http::{HeaderMap, HeaderName, StatusCode},
+    http::{HeaderMap, HeaderName},
     response::Response,
 };
 
@@ -83,7 +84,7 @@ pub const RESPONSE_HEADERS_BLOCKLIST: &[HeaderName] = &[
 /// # 返回值
 ///
 /// * `Ok(Response)` - 代理成功的响应，包含过滤后的响应头和流式响应体
-/// * `Err((StatusCode, String))` - 代理失败，包含 HTTP 状态码和错误描述
+/// * `Err(AppError)` - 代理失败，返回应用错误类型
 ///
 /// # 错误处理
 ///
@@ -128,7 +129,7 @@ pub async fn proxy_request(
     headers: HeaderMap,
     query: Option<String>,
     body: Option<reqwest::Body>,
-) -> Result<Response, (StatusCode, String)> {
+) -> Result<Response, AppError> {
     // 1. 过滤请求头：使用统一的黑名单过滤
     let request_headers = filter_headers_blacklist(&headers, REQUEST_HEADERS_BLOCKLIST);
 
@@ -148,10 +149,7 @@ pub async fn proxy_request(
     }
 
     // 5. 发送请求到目标 API
-    let response = request_builder
-        .send()
-        .await
-        .map_err(|e| (StatusCode::BAD_GATEWAY, e.to_string()))?;
+    let response = request_builder.send().await?;
 
     // 6. 获取响应状态码和过滤响应头
     let status = response.status();
@@ -169,7 +167,5 @@ pub async fn proxy_request(
     let body = Body::from_stream(stream);
 
     // 9. 返回构建的响应
-    builder
-        .body(body)
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))
+    Ok(builder.body(body)?)
 }

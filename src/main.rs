@@ -5,7 +5,7 @@ use tracing::Level;
 use tracing_subscriber::fmt::time::LocalTime;
 
 #[tokio::main]
-async fn main() -> anyhow::Result<()> {
+async fn main() -> std::io::Result<()> {
     dotenvy::dotenv().ok();
 
     tracing_subscriber::fmt()
@@ -16,7 +16,9 @@ async fn main() -> anyhow::Result<()> {
 
     let app = app().await;
 
-    let addr: SocketAddr = "0.0.0.0:3000".parse()?;
+    let addr: SocketAddr = "0.0.0.0:3000"
+        .parse()
+        .expect("Failed to parse socket address: invalid address format");
     tracing::info!("Server running on {}", addr);
 
     axum::serve(TcpListener::bind(addr).await?, app).await?;
