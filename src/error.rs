@@ -33,9 +33,7 @@ impl IntoResponse for AppError {
                 (StatusCode::BAD_GATEWAY, self.to_string()).into_response()
             }
             // 404 Not Found
-            AppError::NotFound(_) => {
-                (StatusCode::NOT_FOUND, self.to_string()).into_response()
-            }
+            AppError::NotFound(_) => (StatusCode::NOT_FOUND, self.to_string()).into_response(),
             // 500 Internal Server Error
             AppError::ResponseBuild(_) => {
                 (StatusCode::INTERNAL_SERVER_ERROR, self.to_string()).into_response()
