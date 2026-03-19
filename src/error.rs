@@ -21,8 +21,8 @@ pub enum AppError {
     ResponseBuild(#[from] axum::http::Error),
 
     /// 文件未找到
-    #[error("File not found: {0}")]
-    NotFound(String),
+    #[error("File not found")]
+    NotFound,
 }
 
 impl IntoResponse for AppError {
@@ -32,8 +32,8 @@ impl IntoResponse for AppError {
             AppError::S3(_) | AppError::Http(_) => {
                 (StatusCode::BAD_GATEWAY, self.to_string()).into_response()
             }
-            // 404 Not Found
-            AppError::NotFound(_) => (StatusCode::NOT_FOUND, self.to_string()).into_response(),
+            // 404 Not Found - 无响应体
+            AppError::NotFound => StatusCode::NOT_FOUND.into_response(),
             // 500 Internal Server Error
             AppError::ResponseBuild(_) => {
                 (StatusCode::INTERNAL_SERVER_ERROR, self.to_string()).into_response()

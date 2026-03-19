@@ -209,7 +209,7 @@ pub async fn handle_files(
 
     // 如果 path 为空或空白，返回 404 错误
     if path.is_empty() || path.trim().is_empty() {
-        return Err(AppError::NotFound("empty path".to_string()));
+        return Err(AppError::NotFound);
     }
 
     // 在 /www 前缀下查找文件
@@ -233,7 +233,7 @@ pub async fn handle_files(
     // 404 回退逻辑：查找索引文件
     let file_key = find_exists_key(state.s3_client.clone(), &state.bucket_name, path)
         .await
-        .ok_or_else(|| AppError::NotFound(path.to_string()))?;
+        .ok_or(AppError::NotFound)?;
 
     // 使用 fetch_and_proxy_file 获取回退文件
     fetch_and_proxy_file(
