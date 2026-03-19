@@ -132,7 +132,9 @@ pub async fn check_key_exists(s3_client: Arc<S3Client>, bucket_name: &str, key: 
 /// 查找请求文件的 S3 键。
 ///
 /// 此函数实现了 SPA 支持的回退逻辑：
-/// - 检查第一级目录中的 index.html。
+/// - 首先将路径视为目录，检查该目录下的 index.html
+/// - 如果不存在，逐级向上回退，检查每级目录的 index.html
+/// - 最后检查根目录的 index.html
 ///
 /// # 参数
 ///
@@ -154,14 +156,29 @@ pub async fn find_exists_key(
     bucket_name: &str,
     pathname: &str,
 ) -> Option<String> {
-    // 1. 检查第一级目录中的 index.html（在 www 前缀下）
-    // 获取第一级目录（只处理正斜杠，因为 URL 总是使用正斜杠）
-    let first_level_dir = pathname.split('/').next().unwrap_or("");
-    if !first_level_dir.is_empty() {
-        let first_level_index = format!("{WWW_PREFIX}/{first_level_dir}/{INDEX_FILE}");
-        if check_key_exists(s3_client.clone(), bucket_name, &first_level_index).await {
-            return Some(first_level_index);
+    // 1. 首先将路径视为目录，检查该目录下的 index.html
+    let dir_index = format!("{WWW_PREFIX}/{}/{INDEX_FILE}", pathname);
+    if check_key_exists(s3_client.clone(), bucket_name, &dir_index).await {
+        return Some(dir_index);
+    }
+
+    // 2. 逐级回退检测
+    // 将路径分割成各个部分
+    let parts: Vec<&str> = pathname.split('/').collect();
+
+    // 从倒数第二部分开始，逐个去除尾部路径，检测父目录的 index.html
+    for i in (1..parts.len()).rev() {
+        let parent_path = parts[..i].join("/");
+        let index_key = format!("{WWW_PREFIX}/{}/{INDEX_FILE}", parent_path);
+        if check_key_exists(s3_client.clone(), bucket_name, &index_key).await {
+            return Some(index_key);
         }
+    }
+
+    // 3. 最后检测根目录的 index.html
+    let root_index = format!("{WWW_PREFIX}/{INDEX_FILE}");
+    if check_key_exists(s3_client.clone(), bucket_name, &root_index).await {
+        return Some(root_index);
     }
 
     None
