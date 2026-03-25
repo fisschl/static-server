@@ -4,6 +4,8 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+async-trait = "0.1"
+mockall = "0.13"
 axum = { version = "0.8.8", features = ["macros"] }
 anyhow = "1.0"
 tower-http = { version = "0.6.8", features = ["cors", "trace"] }
@@ -18,3 +20,8 @@ tracing-subscriber = { version = "0.3.23", features = ["local-time", "time"] }
 cached = { version = "0.58", features = ["async"] }
 mime_guess = "2.0"
 thiserror = "2.0"
+
+[dev-dependencies]
+axum-test = "17"
+tokio-test = "0.4"
+wiremock = "0.6"

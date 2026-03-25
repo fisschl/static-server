@@ -44,3 +44,29 @@ pub fn guess_mime_type(path: &str) -> Option<String> {
     let mime_guess = MimeGuess::from_path(path);
     mime_guess.first().map(|mime| mime.to_string())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use http::header::{HOST, CONTENT_TYPE};
+
+    #[test]
+    fn test_filter_headers_blacklist() {
+        let mut headers = HeaderMap::new();
+        headers.insert(HOST, "example.com".parse().unwrap());
+        headers.insert(CONTENT_TYPE, "text/html".parse().unwrap());
+
+        let filtered = filter_headers_blacklist(&headers, &[HOST]);
+
+        assert!(!filtered.contains_key(HOST));
+        assert!(filtered.contains_key(CONTENT_TYPE));
+    }
+
+    #[test]
+    fn test_guess_mime_type() {
+        assert_eq!(guess_mime_type("file.html"), Some("text/html".into()));
+        assert_eq!(guess_mime_type("file.js"), Some("text/javascript".into()));
+        assert_eq!(guess_mime_type("file.css"), Some("text/css".into()));
+        assert_eq!(guess_mime_type("unknown"), None);
+    }
+}

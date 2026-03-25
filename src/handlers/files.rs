@@ -1,19 +1,15 @@
 use crate::error::AppError;
+use crate::storage::{KeyStatus, Storage};
 use crate::utils::headers::filter_headers_blacklist;
 use crate::utils::headers::guess_mime_type;
 use crate::utils::path::get_extension_lowercase;
 use crate::utils::proxy::{REQUEST_HEADERS_BLOCKLIST, RESPONSE_HEADERS_BLOCKLIST};
-use crate::utils::s3::generate_presigned_url;
-use aws_sdk_s3::Client as S3Client;
 use axum::{
     body::Body,
     extract::{Request, State},
     http::{Response, StatusCode, header},
     response::IntoResponse,
 };
-use cached::proc_macro::cached;
-use reqwest::Client;
-use std::sync::Arc;
 
 /// S3 存储桶中的 www 前缀
 pub const WWW_PREFIX: &str = "www";
@@ -37,166 +33,92 @@ pub const CACHE_CONTROL_VALUE: &str = "public, max-age=2592000";
 /// # 返回值
 ///
 /// 如果文件应该被缓存则返回 `true`，否则返回 `false`。
-fn should_cache(key: &str) -> bool {
-    // 获取文件扩展名并转换为小写
+pub fn should_cache(key: &str) -> bool {
     let ext = get_extension_lowercase(key);
-
-    // 检查是否在不缓存列表中
     !NO_CACHE_EXTS.contains(&ext.as_str())
 }
 
-/// 从 S3 获取文件内容并返回响应
-///
-/// 此函数封装了生成预签名 URL、发送请求和处理响应的逻辑。
-///
-/// # 参数
-///
-/// * `s3_client` - S3 客户端实例。
-/// * `http_client` - HTTP 客户端实例。
-/// * `bucket_name` - S3 存储桶名称。
-/// * `headers` - 原始 HTTP 请求的头部。
-/// * `key` - 要获取的 S3 对象键。
-///
-/// # 返回值
-///
-/// 包含文件内容或错误状态的 HTTP 响应。
-///
-/// # Errors
-///
-/// 当无法生成预签名 URL 或发送 HTTP 请求失败时返回错误。
+/// 从存储获取文件内容并返回响应
 pub async fn fetch_and_proxy_file(
-    s3_client: Arc<S3Client>,
-    http_client: Arc<Client>,
+    storage: &dyn Storage,
+    http_client: &reqwest::Client,
     bucket_name: &str,
     headers: &http::HeaderMap,
     key: &str,
 ) -> Result<Response<Body>, AppError> {
-    // 生成预签名 URL
-    let presigned_url = generate_presigned_url(s3_client.clone(), bucket_name, key).await?;
+    let presigned_url = storage.get_presigned_url(bucket_name, key).await?;
 
-    // 使用统一的黑名单模式过滤并转发请求头部
     let forwarded_headers = filter_headers_blacklist(headers, REQUEST_HEADERS_BLOCKLIST);
-    let forwarded_req = http_client.get(&presigned_url).headers(forwarded_headers);
 
-    // 发送请求并获取响应
-    let response = forwarded_req.send().await?;
+    // 使用 reqwest 直接发送 GET 请求
+    let resp = http_client
+        .get(&presigned_url)
+        .headers(forwarded_headers)
+        .send()
+        .await?;
 
-    // 构建返回的响应
-    let mut resp_builder = Response::builder().status(response.status());
+    let status = resp.status();
+    let response_headers = resp.headers().clone();
+    let body = resp.bytes().await?.to_vec();
 
-    // 使用统一的黑名单模式复制响应头部（移除跨域相关头部，保留其他所有头部）
-    let filtered_headers = filter_headers_blacklist(response.headers(), RESPONSE_HEADERS_BLOCKLIST);
+    let mut resp_builder = Response::builder().status(status);
+
+    let filtered_headers = filter_headers_blacklist(&response_headers, &RESPONSE_HEADERS_BLOCKLIST);
     for (name, value) in filtered_headers.iter() {
         resp_builder = resp_builder.header(name, value);
     }
 
-    // 如果 S3 响应缺少 Content-Type，尝试猜测
-    if !response.headers().contains_key(header::CONTENT_TYPE) {
+    if !response_headers.contains_key(header::CONTENT_TYPE) {
         if let Some(guessed_content_type) = guess_mime_type(key) {
             resp_builder = resp_builder.header(header::CONTENT_TYPE, guessed_content_type);
         }
     }
 
-    // 添加缓存控制头部（仅对成功响应）
-    if response.status().is_success() && should_cache(key) {
+    if status.is_success() && should_cache(key) {
         resp_builder = resp_builder.header(header::CACHE_CONTROL, CACHE_CONTROL_VALUE);
     }
 
-    // 流式传输响应体
-    Ok(resp_builder.body(Body::from_stream(response.bytes_stream()))?)
+    Ok(resp_builder.body(Body::from(body))?)
 }
 
-/// 检查 S3 存储桶中是否存在指定键。
-///
-/// # 参数
-///
-/// * `s3_client` - S3 客户端实例。
-/// * `bucket_name` - S3 存储桶名称。
-/// * `key` - 要检查的 S3 键。
-///
-/// # 返回值
-///
-/// 如果键存在则返回 `true`，否则返回 `false`。
-pub async fn check_key_exists(s3_client: Arc<S3Client>, bucket_name: &str, key: &str) -> bool {
-    // 执行实际的 S3 检查
-    let result = s3_client
-        .head_object()
-        .bucket(bucket_name)
-        .key(key)
-        .send()
-        .await;
-
-    result.is_ok()
+/// 检查存储中是否存在指定键
+pub async fn check_key_exists(
+    storage: &dyn Storage,
+    bucket_name: &str,
+    key: &str,
+) -> KeyStatus {
+    storage.check_key_exists(bucket_name, key).await
 }
 
-/// 查找请求文件的 S3 键。
-///
-/// 此函数实现了 SPA 支持的回退逻辑：
-/// - 首先将路径视为目录，检查该目录下的 index.html
-/// - 如果不存在，逐级向上回退，检查每级目录的 index.html
-/// - 最后检查根目录的 index.html
-///
-/// # 参数
-///
-/// * `s3_client` - S3 客户端实例。
-/// * `bucket_name` - S3 存储桶名称。
-/// * `pathname` - 请求的文件路径。
-///
-/// # 返回值
-///
-/// 要提供的文件的 S3 键，如果未找到文件则返回 `None`。
-#[cached(
-    key = "String",
-    convert = r#"{ format!("{}:{}", bucket_name, pathname) }"#,
-    size = 32768,
-    time = 120
-)]
+/// 查找请求文件的 S3 键
 pub async fn find_exists_key(
-    s3_client: Arc<S3Client>,
+    storage: &dyn Storage,
     bucket_name: &str,
     pathname: &str,
 ) -> Option<String> {
-    // 1. 首先将路径视为目录，检查该目录下的 index.html
     let dir_index = format!("{WWW_PREFIX}/{}/{INDEX_FILE}", pathname);
-    if check_key_exists(s3_client.clone(), bucket_name, &dir_index).await {
+    if storage.check_key_exists(bucket_name, &dir_index).await == KeyStatus::Exists {
         return Some(dir_index);
     }
 
-    // 2. 逐级回退检测
-    // 将路径分割成各个部分
     let parts: Vec<&str> = pathname.split('/').collect();
-
-    // 从倒数第二部分开始，逐个去除尾部路径，检测父目录的 index.html
     for i in (1..parts.len()).rev() {
         let parent_path = parts[..i].join("/");
         let index_key = format!("{WWW_PREFIX}/{}/{INDEX_FILE}", parent_path);
-        if check_key_exists(s3_client.clone(), bucket_name, &index_key).await {
+        if check_key_exists(storage, bucket_name, &index_key).await == KeyStatus::Exists {
             return Some(index_key);
         }
     }
 
-    // 3. 最后检测根目录的 index.html
     let root_index = format!("{WWW_PREFIX}/{INDEX_FILE}");
-    if check_key_exists(s3_client.clone(), bucket_name, &root_index).await {
+    if check_key_exists(storage, bucket_name, &root_index).await == KeyStatus::Exists {
         return Some(root_index);
     }
 
     None
 }
 
-/// 处理文件请求并为静态内容提供服务。
-///
-/// 此函数尝试在 S3 存储桶中查找请求的文件。如果未找到文件，
-/// 它会实现回退机制来为 SPA 支持提供 `index.html`。
-///
-/// # 参数
-///
-/// * `State(state)` - 应用状态，包含 S3 和 HTTP 客户端。
-/// * `req` - HTTP 请求。
-///
-/// # 返回值
-///
-/// 包含文件内容或错误状态的 HTTP 响应。
+/// 处理文件请求
 pub async fn handle_files(
     State(state): State<crate::AppState>,
     req: Request,
@@ -207,41 +129,84 @@ pub async fn handle_files(
         .trim_start_matches('/')
         .trim_end_matches('/');
 
-    // 如果 path 为空或空白，返回 404 错误
     if path.is_empty() || path.trim().is_empty() {
         return Err(AppError::NotFound);
     }
 
-    // 在 /www 前缀下查找文件
     let s3_path = format!("{WWW_PREFIX}/{path}");
 
-    // 尝试直接获取请求的文件
     let response = fetch_and_proxy_file(
-        state.s3_client.clone(),
-        state.http_client.clone(),
+        state.storage.as_ref(),
+        &state.http_client,
         &state.bucket_name,
         req.headers(),
         &s3_path,
     )
     .await?;
 
-    // 如果成功获取文件且不是 404，直接返回响应
     if response.status() != StatusCode::NOT_FOUND {
         return Ok(response);
     }
 
-    // 404 回退逻辑：查找索引文件
-    let file_key = find_exists_key(state.s3_client.clone(), &state.bucket_name, path)
+    let file_key = find_exists_key(state.storage.as_ref(), &state.bucket_name, path)
         .await
         .ok_or(AppError::NotFound)?;
 
-    // 使用 fetch_and_proxy_file 获取回退文件
     fetch_and_proxy_file(
-        state.s3_client,
-        state.http_client,
+        state.storage.as_ref(),
+        &state.http_client,
         &state.bucket_name,
         req.headers(),
         &file_key,
     )
     .await
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::storage::MockStorage;
+    use wiremock::{Mock, MockServer, ResponseTemplate};
+    use wiremock::matchers::{method, path};
+
+    #[tokio::test]
+    async fn test_fetch_and_proxy_file_success() {
+        let mock_server = MockServer::start().await;
+        let mut mock_storage = MockStorage::new();
+        let mock_uri = mock_server.uri();
+
+        Mock::given(method("GET"))
+            .and(path("/test.txt"))
+            .respond_with(ResponseTemplate::new(200)
+                .set_body_string("Hello World"))
+            .mount(&mock_server)
+            .await;
+
+        mock_storage
+            .expect_get_presigned_url()
+            .returning(move |_, _| Ok(format!("{}/test.txt", mock_uri)));
+
+        let http_client = reqwest::Client::new();
+
+        let result = fetch_and_proxy_file(
+            &mock_storage,
+            &http_client,
+            "test-bucket",
+            &http::HeaderMap::new(),
+            "www/test.txt",
+        ).await;
+
+        assert!(result.is_ok());
+        let response = result.unwrap();
+        assert_eq!(response.status(), http::StatusCode::OK);
+    }
+
+    #[test]
+    fn test_should_cache() {
+        assert!(should_cache("file.css"));
+        assert!(should_cache("file.js"));
+        assert!(should_cache("image.png"));
+        assert!(!should_cache("page.html"));
+        assert!(!should_cache("page.htm"));
+    }
 }

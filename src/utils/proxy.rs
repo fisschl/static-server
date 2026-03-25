@@ -169,3 +169,145 @@ pub async fn proxy_request(
     // 9. 返回构建的响应
     Ok(builder.body(body)?)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use wiremock::{Mock, MockServer, ResponseTemplate};
+    use wiremock::matchers::{method, path, header};
+
+    #[tokio::test]
+    async fn test_proxy_request_get_success() {
+        let mock_server = MockServer::start().await;
+
+        Mock::given(method("GET"))
+            .and(path("/test"))
+            .respond_with(ResponseTemplate::new(200)
+                .set_body_string("Hello from mock"))
+            .mount(&mock_server)
+            .await;
+
+        let client = reqwest::Client::new();
+        let mut headers = HeaderMap::new();
+        headers.insert("X-Custom-Header", "test-value".parse().unwrap());
+
+        let response = proxy_request(
+            &client,
+            &format!("{}/test", mock_server.uri()),
+            reqwest::Method::GET,
+            headers,
+            None,
+            None,
+        ).await.unwrap();
+
+        assert_eq!(response.status(), 200);
+    }
+
+    #[tokio::test]
+    async fn test_proxy_request_post_with_body() {
+        let mock_server = MockServer::start().await;
+
+        Mock::given(method("POST"))
+            .and(path("/api/data"))
+            .respond_with(ResponseTemplate::new(201)
+                .set_body_string(r#"{"id": 123}"#))
+            .mount(&mock_server)
+            .await;
+
+        let client = reqwest::Client::new();
+        let headers = HeaderMap::new();
+        let body = reqwest::Body::from(r#"{"name":"test"}"#);
+
+        let response = proxy_request(
+            &client,
+            &format!("{}/api/data", mock_server.uri()),
+            reqwest::Method::POST,
+            headers,
+            None,
+            Some(body),
+        ).await.unwrap();
+
+        assert_eq!(response.status(), 201);
+    }
+
+    #[tokio::test]
+    async fn test_proxy_request_with_query_params() {
+        let mock_server = MockServer::start().await;
+
+        Mock::given(method("GET"))
+            .and(path("/search"))
+            .respond_with(ResponseTemplate::new(200)
+                .set_body_string("search results"))
+            .mount(&mock_server)
+            .await;
+
+        let client = reqwest::Client::new();
+        let headers = HeaderMap::new();
+
+        let response = proxy_request(
+            &client,
+            &format!("{}/search", mock_server.uri()),
+            reqwest::Method::GET,
+            headers,
+            Some("q=test&limit=10".to_string()),
+            None,
+        ).await.unwrap();
+
+        assert_eq!(response.status(), 200);
+    }
+
+    #[tokio::test]
+    async fn test_proxy_request_filters_request_headers() {
+        let mock_server = MockServer::start().await;
+
+        Mock::given(method("GET"))
+            .and(path("/headers"))
+            .and(header("X-Allowed", "should-be-present"))
+            .respond_with(ResponseTemplate::new(200))
+            .mount(&mock_server)
+            .await;
+
+        let client = reqwest::Client::new();
+        let mut headers = HeaderMap::new();
+        headers.insert("X-Allowed", "should-be-present".parse().unwrap());
+        headers.insert(HOST, "original-host.com".parse().unwrap());
+        headers.insert(CONNECTION, "keep-alive".parse().unwrap());
+
+        let response = proxy_request(
+            &client,
+            &format!("{}/headers", mock_server.uri()),
+            reqwest::Method::GET,
+            headers,
+            None,
+            None,
+        ).await.unwrap();
+
+        assert_eq!(response.status(), 200);
+    }
+
+    #[tokio::test]
+    async fn test_proxy_request_error_response() {
+        let mock_server = MockServer::start().await;
+
+        Mock::given(method("GET"))
+            .and(path("/error"))
+            .respond_with(ResponseTemplate::new(500)
+                .set_body_string("Internal Server Error"))
+            .mount(&mock_server)
+            .await;
+
+        let client = reqwest::Client::new();
+        let headers = HeaderMap::new();
+
+        let response = proxy_request(
+            &client,
+            &format!("{}/error", mock_server.uri()),
+            reqwest::Method::GET,
+            headers,
+            None,
+            None,
+        ).await.unwrap();
+
+        assert_eq!(response.status(), 500);
+    }
+}

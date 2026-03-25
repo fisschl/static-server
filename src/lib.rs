@@ -9,48 +9,58 @@
 pub mod error;
 pub mod handlers;
 pub mod utils;
+pub mod storage;
 
-use aws_sdk_s3::Client as S3Client;
+use storage::{Storage, S3Storage};
 use axum::routing::get;
-use reqwest::Client;
 use std::sync::Arc;
 use tower_http::cors::CorsLayer;
 use tower_http::trace::TraceLayer;
 
-/// 应用状态，包含所有共享资源
+/// 应用状态 - 使用 Arc 包装 Storage trait 对象
 #[derive(Clone)]
 pub struct AppState {
-    /// S3 客户端实例
-    pub s3_client: Arc<S3Client>,
-    /// HTTP 客户端实例（用于代理请求）
-    pub http_client: Arc<Client>,
-    /// S3 存储桶名称
+    pub storage: Arc<dyn Storage>,
+    pub http_client: reqwest::Client,
     pub bucket_name: String,
 }
 
-/// 创建并配置Axum应用程序
-///
-/// # Returns
-///
-/// 返回配置好的Axum Router实例
+/// 创建应用（生产环境）
 pub async fn app() -> axum::Router {
     // 初始化 S3 客户端
     let s3_config = aws_config::load_from_env().await;
     let s3_client = Arc::new(aws_sdk_s3::Client::new(&s3_config));
+    let storage = S3Storage::new(s3_client);
 
-    // 初始化 HTTP 客户端用于代理
-    let http_client = Arc::new(Client::new());
+    // 初始化 HTTP 客户端
+    let http_client = reqwest::Client::new();
 
     // 从环境变量读取 S3 存储桶名称
-    let bucket_name = std::env::var("AWS_BUCKET").expect(
-        "AWS_BUCKET environment variable must be set. Please set AWS_BUCKET=your-bucket-name",
-    );
+    let bucket_name = std::env::var("AWS_BUCKET")
+        .expect("AWS_BUCKET environment variable must be set");
 
-    // 创建应用状态
     let state = AppState {
-        s3_client,
+        storage: Arc::new(storage),
         http_client,
         bucket_name,
+    };
+
+    axum::Router::new()
+        .fallback(get(handlers::files::handle_files))
+        .with_state(state)
+        .layer(TraceLayer::new_for_http())
+        .layer(CorsLayer::permissive())
+}
+
+/// 创建应用（可注入存储和 HTTP 客户端，用于测试）
+pub fn app_with_deps<S>(storage: S, http_client: reqwest::Client, bucket: String) -> axum::Router
+where
+    S: Storage + 'static,
+{
+    let state = AppState {
+        storage: Arc::new(storage),
+        http_client,
+        bucket_name: bucket,
     };
 
     axum::Router::new()
