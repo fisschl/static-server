@@ -1,9 +1,15 @@
 use axum_test::TestServer;
-use static_server::{app_with_deps, storage::{MockStorage, KeyStatus}};
+use static_server::{app_with_deps, storage::MockStorage};
 use mockall::predicate::*;
 use wiremock::{Mock, MockServer, ResponseTemplate};
 use wiremock::matchers::{method, path};
 
+/// 测试成功获取文件
+///
+/// 验证：
+/// - 能够成功从存储获取预签名 URL
+/// - 通过预签名 URL 获取文件内容
+/// - 返回正确的 HTTP 响应状态码（200 OK）和文件内容
 #[tokio::test]
 async fn test_get_file_success() {
     let mock_server = MockServer::start().await;
@@ -34,6 +40,11 @@ async fn test_get_file_success() {
     response.assert_text("<html>Hello</html>");
 }
 
+/// 测试文件不存在时的处理
+///
+/// 验证：
+/// - 当请求的文件不存在时返回 404
+/// - SPA fallback 机制在找不到文件时也返回 404
 #[tokio::test]
 async fn test_get_file_not_found() {
     let mut mock_storage = MockStorage::new();
@@ -46,7 +57,7 @@ async fn test_get_file_not_found() {
     // SPA fallback 也找不到
     mock_storage
         .expect_check_key_exists()
-        .returning(|_, _| KeyStatus::NotFound);
+        .returning(|_, _| Ok(false));
 
     let http_client = reqwest::Client::new();
     let app = app_with_deps(mock_storage, http_client, "test-bucket".into());
@@ -83,12 +94,12 @@ async fn test_spa_fallback() {
     mock_storage
         .expect_check_key_exists()
         .with(eq("test-bucket"), eq("www/app/page/index.html"))
-        .returning(|_, _| KeyStatus::NotFound);
+        .returning(|_, _| Ok(false));
 
     mock_storage
         .expect_check_key_exists()
         .with(eq("test-bucket"), eq("www/app/index.html"))
-        .returning(|_, _| KeyStatus::Exists);
+        .returning(|_, _| Ok(true));
 
     mock_storage
         .expect_get_presigned_url()

@@ -8,7 +8,6 @@
 
 pub mod error;
 pub mod handlers;
-pub mod utils;
 pub mod storage;
 
 use storage::{Storage, S3Storage};
