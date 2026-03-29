@@ -21,7 +21,6 @@ use tower_http::trace::TraceLayer;
 pub struct AppState {
     pub storage: Arc<dyn Storage>,
     pub http_client: reqwest::Client,
-    pub bucket_name: String,
 }
 
 /// 创建应用（生产环境）
@@ -29,19 +28,19 @@ pub async fn app() -> axum::Router {
     // 初始化 S3 客户端
     let s3_config = aws_config::load_from_env().await;
     let s3_client = Arc::new(aws_sdk_s3::Client::new(&s3_config));
-    let storage = S3Storage::new(s3_client);
-
-    // 初始化 HTTP 客户端
-    let http_client = reqwest::Client::new();
 
     // 从环境变量读取 S3 存储桶名称
     let bucket_name =
         std::env::var("AWS_BUCKET").expect("AWS_BUCKET environment variable must be set");
 
+    let storage = S3Storage::new(s3_client, bucket_name);
+
+    // 初始化 HTTP 客户端
+    let http_client = reqwest::Client::new();
+
     let state = AppState {
         storage: Arc::new(storage),
         http_client,
-        bucket_name,
     };
 
     axum::Router::new()
