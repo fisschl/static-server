@@ -10,9 +10,9 @@ pub mod error;
 pub mod handlers;
 pub mod storage;
 
-use storage::{Storage, S3Storage};
 use axum::routing::get;
 use std::sync::Arc;
+use storage::{S3Storage, Storage};
 use tower_http::cors::CorsLayer;
 use tower_http::trace::TraceLayer;
 
@@ -35,31 +35,13 @@ pub async fn app() -> axum::Router {
     let http_client = reqwest::Client::new();
 
     // 从环境变量读取 S3 存储桶名称
-    let bucket_name = std::env::var("AWS_BUCKET")
-        .expect("AWS_BUCKET environment variable must be set");
+    let bucket_name =
+        std::env::var("AWS_BUCKET").expect("AWS_BUCKET environment variable must be set");
 
     let state = AppState {
         storage: Arc::new(storage),
         http_client,
         bucket_name,
-    };
-
-    axum::Router::new()
-        .fallback(get(handlers::files::handle_files))
-        .with_state(state)
-        .layer(TraceLayer::new_for_http())
-        .layer(CorsLayer::permissive())
-}
-
-/// 创建应用（可注入存储和 HTTP 客户端，用于测试）
-pub fn app_with_deps<S>(storage: S, http_client: reqwest::Client, bucket: String) -> axum::Router
-where
-    S: Storage + 'static,
-{
-    let state = AppState {
-        storage: Arc::new(storage),
-        http_client,
-        bucket_name: bucket,
     };
 
     axum::Router::new()
