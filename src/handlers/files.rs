@@ -3,8 +3,8 @@ use crate::storage::Storage;
 use axum::http::header::{
     ACCESS_CONTROL_ALLOW_CREDENTIALS, ACCESS_CONTROL_ALLOW_HEADERS, ACCESS_CONTROL_ALLOW_METHODS,
     ACCESS_CONTROL_ALLOW_ORIGIN, ACCESS_CONTROL_EXPOSE_HEADERS, ACCESS_CONTROL_MAX_AGE, AGE,
-    CACHE_CONTROL, CONNECTION, COOKIE, EXPIRES, HOST, ORIGIN, PRAGMA, PROXY_AUTHORIZATION, REFERER,
-    SET_COOKIE, TE, TRAILER, TRANSFER_ENCODING, UPGRADE, VARY,
+    CACHE_CONTROL, CONNECTION, CONTENT_DISPOSITION, COOKIE, EXPIRES, HOST, ORIGIN, PRAGMA,
+    PROXY_AUTHORIZATION, REFERER, SET_COOKIE, TE, TRAILER, TRANSFER_ENCODING, UPGRADE, VARY,
 };
 use axum::http::{HeaderMap, HeaderName};
 use axum::{
@@ -62,6 +62,7 @@ pub const RESPONSE_HEADERS_BLOCKLIST: &[HeaderName] = &[
     EXPIRES,                          // 过期时间，应由代理服务器管理
     AGE,                              // 缓存年龄，应由代理服务器管理
     PRAGMA,                           // HTTP/1.0 缓存控制
+    CONTENT_DISPOSITION,              // 避免浏览器下载而不是显示页面
 ];
 
 /// 通用代理请求函数
