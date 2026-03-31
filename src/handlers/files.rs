@@ -102,31 +102,6 @@ pub const RESPONSE_HEADERS_BLOCKLIST: &[HeaderName] = &[
 /// 2. **查询参数处理**: 支持将查询参数附加到目标 URL
 /// 3. **流式传输**: 支持流式传输请求体和响应体，降低内存占用
 /// 4. **响应头过滤**: 移除不应转发的响应头（如 CORS 相关头）
-///
-/// # 示例
-///
-/// ```rust,ignore
-/// // 简单 GET 请求代理
-/// let response = proxy_request(
-///     &state.http_client,
-///     "https://api.example.com/data",
-///     Method::GET,
-///     headers,
-///     None,  // 无查询参数
-///     None,  // 无请求体
-/// ).await?;
-///
-/// // 带 JSON 请求体的 POST 请求
-/// let body = reqwest::Body::from(json_str);
-/// let response = proxy_request(
-///     &state.http_client,
-///     "https://api.example.com/create",
-///     Method::POST,
-///     headers,
-///     Some("format=json".to_string()),  // 查询参数
-///     Some(body),                       // JSON 请求体
-/// ).await?;
-/// ```
 pub async fn proxy_request(
     client: &reqwest::Client,
     target_url: &str,
@@ -210,14 +185,6 @@ pub const CACHE_CONTROL_VALUE: &str = "public, max-age=2592000";
 /// # 返回值
 ///
 /// 如果文件应该被缓存则返回 `true`，否则返回 `false`
-///
-/// # 示例
-///
-/// ```
-/// assert!(should_cache("style.css"));    // true - CSS 文件可缓存
-/// assert!(should_cache("app.js"));       // true - JS 文件可缓存
-/// assert!(!should_cache("index.html"));  // false - HTML 文件不缓存
-/// ```
 pub fn should_cache(key: &str) -> bool {
     let ext = Path::new(key)
         .extension()
@@ -237,7 +204,6 @@ pub fn should_cache(key: &str) -> bool {
 ///
 /// * `storage` - 存储后端 trait 对象，用于获取预签名 URL
 /// * `http_client` - reqwest HTTP 客户端，用于发送请求
-/// * `bucket_name` - S3 存储桶名称
 /// * `headers` - 客户端传入的请求头，会被过滤后转发
 /// * `key` - 文件在存储中的键（路径）
 ///
@@ -255,11 +221,10 @@ pub fn should_cache(key: &str) -> bool {
 pub async fn fetch_and_proxy_file(
     storage: &dyn Storage,
     http_client: &reqwest::Client,
-    bucket_name: &str,
     headers: &http::HeaderMap,
     key: &str,
 ) -> Result<Response<Body>, AppError> {
-    let presigned_url = storage.get_presigned_url(bucket_name, key).await?;
+    let presigned_url = storage.get_presigned_url(key).await?;
 
     let forwarded_headers = {
         let mut result = http::HeaderMap::new();
@@ -319,7 +284,6 @@ pub async fn fetch_and_proxy_file(
 /// # 参数
 ///
 /// * `storage` - 存储后端 trait 对象
-/// * `bucket_name` - S3 存储桶名称
 /// * `pathname` - 请求的路径名
 ///
 /// # 返回值
@@ -334,11 +298,10 @@ pub async fn fetch_and_proxy_file(
 /// - 最后尝试 `www/index.html`
 pub async fn find_exists_key(
     storage: &dyn Storage,
-    bucket_name: &str,
     pathname: &str,
 ) -> Result<Option<String>, AppError> {
     let dir_index = format!("{WWW_PREFIX}/{}/{INDEX_FILE}", pathname);
-    match storage.check_key_exists(bucket_name, &dir_index).await {
+    match storage.check_key_exists(&dir_index).await {
         Ok(true) => return Ok(Some(dir_index)),
         Ok(false) => {}
         Err(e) => return Err(e),
@@ -348,7 +311,7 @@ pub async fn find_exists_key(
     for i in (1..parts.len()).rev() {
         let parent_path = parts[..i].join("/");
         let index_key = format!("{WWW_PREFIX}/{}/{INDEX_FILE}", parent_path);
-        match storage.check_key_exists(bucket_name, &index_key).await {
+        match storage.check_key_exists(&index_key).await {
             Ok(true) => return Ok(Some(index_key)),
             Ok(false) => {}
             Err(e) => return Err(e),
@@ -356,7 +319,7 @@ pub async fn find_exists_key(
     }
 
     let root_index = format!("{WWW_PREFIX}/{INDEX_FILE}");
-    match storage.check_key_exists(bucket_name, &root_index).await {
+    match storage.check_key_exists(&root_index).await {
         Ok(true) => Ok(Some(root_index)),
         Ok(false) => Ok(None),
         Err(e) => Err(e),
@@ -410,7 +373,6 @@ pub async fn handle_files(
     let response = fetch_and_proxy_file(
         state.storage.as_ref(),
         &state.http_client,
-        &state.bucket_name,
         req.headers(),
         &s3_path,
     )
@@ -420,14 +382,13 @@ pub async fn handle_files(
         return Ok(response);
     }
 
-    let file_key = find_exists_key(state.storage.as_ref(), &state.bucket_name, path)
+    let file_key = find_exists_key(state.storage.as_ref(), path)
         .await?
         .ok_or(AppError::NotFound)?;
 
     fetch_and_proxy_file(
         state.storage.as_ref(),
         &state.http_client,
-        &state.bucket_name,
         req.headers(),
         &file_key,
     )
@@ -639,14 +600,13 @@ mod tests {
 
         mock_storage
             .expect_get_presigned_url()
-            .returning(move |_, _| Ok(format!("{}/test.txt", mock_uri)));
-
+            .returning(move |_| Ok(format!("{}/test.txt", mock_uri)));
+        
         let http_client = reqwest::Client::new();
-
+        
         let result = fetch_and_proxy_file(
             &mock_storage,
             &http_client,
-            "test-bucket",
             &http::HeaderMap::new(),
             "www/test.txt",
         )
@@ -682,11 +642,11 @@ mod tests {
 
         mock_storage
             .expect_check_key_exists()
-            .with(eq("test-bucket"), eq("www/app/page/index.html"))
-            .returning(|_, _| Ok(true));
-
-        let result = find_exists_key(&mock_storage, "test-bucket", "app/page").await;
-
+            .with(eq("www/app/page/index.html"))
+            .returning(|_| Ok(true));
+        
+        let result = find_exists_key(&mock_storage, "app/page").await;
+        
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), Some("www/app/page/index.html".to_string()));
     }
@@ -703,17 +663,17 @@ mod tests {
         // 直接目录索引不存在
         mock_storage
             .expect_check_key_exists()
-            .with(eq("test-bucket"), eq("www/app/page/index.html"))
-            .returning(|_, _| Ok(false));
-
+            .with(eq("www/app/page/index.html"))
+            .returning(|_| Ok(false));
+        
         // 父目录索引存在
         mock_storage
             .expect_check_key_exists()
-            .with(eq("test-bucket"), eq("www/app/index.html"))
-            .returning(|_, _| Ok(true));
-
-        let result = find_exists_key(&mock_storage, "test-bucket", "app/page").await;
-
+            .with(eq("www/app/index.html"))
+            .returning(|_| Ok(true));
+        
+        let result = find_exists_key(&mock_storage, "app/page").await;
+        
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), Some("www/app/index.html".to_string()));
     }
@@ -730,22 +690,22 @@ mod tests {
         // 直接目录索引不存在
         mock_storage
             .expect_check_key_exists()
-            .with(eq("test-bucket"), eq("www/app/page/index.html"))
-            .returning(|_, _| Ok(false));
-
+            .with(eq("www/app/page/index.html"))
+            .returning(|_| Ok(false));
+        
         // 父目录索引也不存在
         mock_storage
             .expect_check_key_exists()
-            .with(eq("test-bucket"), eq("www/app/index.html"))
-            .returning(|_, _| Ok(false));
-
+            .with(eq("www/app/index.html"))
+            .returning(|_| Ok(false));
+        
         // 根目录索引存在
         mock_storage
             .expect_check_key_exists()
-            .with(eq("test-bucket"), eq("www/index.html"))
-            .returning(|_, _| Ok(true));
-
-        let result = find_exists_key(&mock_storage, "test-bucket", "app/page").await;
+            .with(eq("www/index.html"))
+            .returning(|_| Ok(true));
+        
+        let result = find_exists_key(&mock_storage, "app/page").await;
 
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), Some("www/index.html".to_string()));
@@ -763,20 +723,20 @@ mod tests {
         // 所有索引都不存在
         mock_storage
             .expect_check_key_exists()
-            .with(eq("test-bucket"), eq("www/app/page/index.html"))
-            .returning(|_, _| Ok(false));
-
+            .with(eq("www/app/page/index.html"))
+            .returning(|_| Ok(false));
+        
         mock_storage
             .expect_check_key_exists()
-            .with(eq("test-bucket"), eq("www/app/index.html"))
-            .returning(|_, _| Ok(false));
-
+            .with(eq("www/app/index.html"))
+            .returning(|_| Ok(false));
+        
         mock_storage
             .expect_check_key_exists()
-            .with(eq("test-bucket"), eq("www/index.html"))
-            .returning(|_, _| Ok(false));
-
-        let result = find_exists_key(&mock_storage, "test-bucket", "app/page").await;
+            .with(eq("www/index.html"))
+            .returning(|_| Ok(false));
+        
+        let result = find_exists_key(&mock_storage, "app/page").await;
 
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), None);
@@ -793,15 +753,15 @@ mod tests {
 
         mock_storage
             .expect_check_key_exists()
-            .with(eq("test-bucket"), eq("www/app/index.html"))
-            .returning(|_, _| Ok(false));
-
+            .with(eq("www/app/index.html"))
+            .returning(|_| Ok(false));
+        
         mock_storage
             .expect_check_key_exists()
-            .with(eq("test-bucket"), eq("www/index.html"))
-            .returning(|_, _| Ok(true));
-
-        let result = find_exists_key(&mock_storage, "test-bucket", "app").await;
+            .with(eq("www/index.html"))
+            .returning(|_| Ok(true));
+        
+        let result = find_exists_key(&mock_storage, "app").await;
 
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), Some("www/index.html".to_string()));
@@ -821,20 +781,19 @@ mod tests {
         // Mock 存储返回预签名 URL
         mock_storage
             .expect_get_presigned_url()
-            .with(eq("test-bucket"), eq("www/test.txt"))
-            .returning(move |_, _| Ok(format!("{}/test.txt", mock_uri)));
-
+            .with(eq("www/test.txt"))
+            .returning(move |_| Ok(format!("{}/test.txt", mock_uri)));
+        
         // Wiremock 模拟 S3 返回文件内容
         Mock::given(method("GET"))
             .and(path("/test.txt"))
             .respond_with(ResponseTemplate::new(200).set_body_string("Hello World"))
             .mount(&mock_server)
             .await;
-
+        
         let state = AppState {
             storage: Arc::new(mock_storage),
             http_client: reqwest::Client::new(),
-            bucket_name: "test-bucket".to_string(),
         };
 
         let req = Request::builder()
@@ -860,24 +819,23 @@ mod tests {
         // 文件不存在
         mock_storage
             .expect_get_presigned_url()
-            .with(eq("test-bucket"), eq("www/missing.txt"))
-            .returning(|_, _| Err(crate::error::AppError::NotFound));
-
+            .with(eq("www/missing.txt"))
+            .returning(|_| Err(crate::error::AppError::NotFound));
+        
         // SPA fallback 也找不到
         mock_storage
             .expect_check_key_exists()
-            .with(eq("test-bucket"), eq("www/missing.txt/index.html"))
-            .returning(|_, _| Ok(false));
-
+            .with(eq("www/missing.txt/index.html"))
+            .returning(|_| Ok(false));
+        
         mock_storage
             .expect_check_key_exists()
-            .with(eq("test-bucket"), eq("www/index.html"))
-            .returning(|_, _| Ok(false));
-
+            .with(eq("www/index.html"))
+            .returning(|_| Ok(false));
+        
         let state = AppState {
             storage: Arc::new(mock_storage),
             http_client: reqwest::Client::new(),
-            bucket_name: "test-bucket".to_string(),
         };
 
         let req = Request::builder()
@@ -900,20 +858,19 @@ mod tests {
     #[tokio::test]
     async fn test_handle_files_empty_path() {
         let mock_storage = MockStorage::new();
-
+        
         let state = AppState {
             storage: Arc::new(mock_storage),
             http_client: reqwest::Client::new(),
-            bucket_name: "test-bucket".to_string(),
         };
-
+        
         let req = Request::builder()
             .uri("/")
             .body(Body::empty())
             .unwrap();
-
+        
         let result = handle_files(axum::extract::State(state), req).await;
-
+        
         match result {
             Err(crate::error::AppError::NotFound) => {}
             _ => panic!("Expected NotFound error"),
@@ -934,44 +891,43 @@ mod tests {
         // 第一次请求返回 404
         mock_storage
             .expect_get_presigned_url()
-            .with(eq("test-bucket"), eq("www/app/page"))
+            .with(eq("www/app/page"))
             .returning({
                 let uri = mock_uri.clone();
-                move |_, _| Ok(format!("{}/app/page", uri))
+                move |_| Ok(format!("{}/app/page", uri))
             });
-
+        
         Mock::given(method("GET"))
             .and(path("/app/page"))
             .respond_with(ResponseTemplate::new(404))
             .mount(&mock_server)
             .await;
-
+        
         // SPA fallback 找到 index.html
         mock_storage
             .expect_check_key_exists()
-            .with(eq("test-bucket"), eq("www/app/page/index.html"))
-            .returning(|_, _| Ok(false));
-
+            .with(eq("www/app/page/index.html"))
+            .returning(|_| Ok(false));
+        
         mock_storage
             .expect_check_key_exists()
-            .with(eq("test-bucket"), eq("www/app/index.html"))
-            .returning(|_, _| Ok(true));
-
+            .with(eq("www/app/index.html"))
+            .returning(|_| Ok(true));
+        
         mock_storage
             .expect_get_presigned_url()
-            .with(eq("test-bucket"), eq("www/app/index.html"))
-            .returning(move |_, _| Ok(format!("{}/app/index.html", mock_uri)));
-
+            .with(eq("www/app/index.html"))
+            .returning(move |_| Ok(format!("{}/app/index.html", mock_uri)));
+        
         Mock::given(method("GET"))
             .and(path("/app/index.html"))
             .respond_with(ResponseTemplate::new(200).set_body_string("SPA App"))
             .mount(&mock_server)
             .await;
-
+        
         let state = AppState {
             storage: Arc::new(mock_storage),
             http_client: reqwest::Client::new(),
-            bucket_name: "test-bucket".to_string(),
         };
 
         let req = Request::builder()
